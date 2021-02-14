@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+
+#bokan works
 args = commandArgs(trailingOnly=TRUE)
 
 #rm(list=ls())
@@ -29,7 +31,10 @@ args = commandArgs(trailingOnly=TRUE)
 #args="~/Desktop/ageBalanced_decov_genes_wF/mainDataset_HT12/mainDataset_HT12/"
 #args="testDataset_HT12/"
 #args="/data/vahid/classification/ageBalanced_TD39/perm5/classificationSet_subject_scores/"
-.myDataCollector=function(){
+.myDataCollector=function(args){
+  # args="/Volumes/Work/Vahid_work/classification/classification/HT_as_test_v2/data/deconvoluted_genes/sampleScores/mainDataset_HT12_WG6/classificationSet/"
+  # args="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/"
+  
   require(plyr)
   path=gsub("\"", "", args[1])
   dataList=read.table(paste0(path,"dataList.txt"))
@@ -42,10 +47,11 @@ args = commandArgs(trailingOnly=TRUE)
       path=""
   }
   PRres=""
+  # line_count=0
   for(i in 1:nrow(dataList)){
-    if(file.exists(paste0(dataList$V1[i],'results.rda'))){
+    if(file.exists(paste0(path,dataList$V1[i],'results.rda'))){
       #load(paste0(path,dataList$V1[i],'results.rda'))
-      load(paste0(dataList$V1[i],'results.rda'))
+      load(paste0(path,dataList$V1[i],'results.rda'))
       if(all(length(PRres)==1&PRres=="")){
         PRres=data.frame(name=row.names(result[["PRresults"]]),result[["PRresults"]])
         ROCres=data.frame(name=row.names(result[["ROCresults"]]),result[["ROCresults"]])
@@ -65,6 +71,7 @@ args = commandArgs(trailingOnly=TRUE)
         perc9=rbind.fill(perc9,data.frame(name=row.names(result[["perc9"]]),result[["perc9"]]))
         perc95=rbind.fill(perc95,data.frame(name=row.names(result[["perc95"]]),result[["perc95"]]))
       }
+      # line_count=line_count+1
     }
   }
   
@@ -184,6 +191,6 @@ args = commandArgs(trailingOnly=TRUE)
   return(res)
 }
 
-suppressWarnings({
-  .myDataCollector()
-})
+# suppressWarnings({
+  # .myDataCollector(args)
+# })

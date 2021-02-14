@@ -168,7 +168,8 @@ library(Biobase)
   
 }
 .myDxNormalizingFn=function(inputData,inputColName){
-  
+  # inputData=LWdata
+  # inputColName ='DxJ_DxGroup_3'
   if(sum(regexpr("Tests Typica",inputData[,inputColName])>(-1),na.rm = T)>0){
     inputData[which(regexpr("Tests Typica",inputData[,inputColName])>(-1)),inputColName]="TD"
   }
@@ -248,7 +249,8 @@ library(Biobase)
   return(inputData)
 }
 .myDxReaderFn=function(){
-  LWdata=read.table("~/OneDrive - UC San Diego/vahid_mac/Documents/data/karen/karen_DxStabilityPaper/LWReport_05182018_updatedCertScores.txt",sep="\t",header=T,stringsAsFactors = F,comment.char = "",dec=NULL,quote ="",na.strings = "NULL")
+  # LWdata=read.table("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/LWReport_04182020_updated.csv",row.names=1,sep=",",header=T,stringsAsFactors = F,comment.char = "",dec=NULL,quote ="",na.strings = "NULL")
+  LWdata <- read.csv("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/LWReport_04182020_updated.csv")
   LWdata=.myDxNormalizingFn(LWdata,"DxJ_DxGroup_1")
   LWdata=.myDxNormalizingFn(LWdata,"DxJ_DxGroup_2")
   LWdata=.myDxNormalizingFn(LWdata,"DxJ_DxGroup_3")

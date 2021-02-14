@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
+# Bokan final
 args = commandArgs(trailingOnly=TRUE)
 
-#setwd("~/classificationModuleJabba/classificationCode/3- mainCode")
+setwd("/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/2_mainCode")
 source("WGCNAandGeneFilterationMethods.R")
 source("pipelines.R")
 source("ClassificationModule.R")
@@ -75,4 +76,4 @@ source("ClassificationModule.R")
   return(list(PRresult=result$PRresults,ROCresults=result$ROCresults,cv=x$status))
 }
 
-.myfoldRunnerFn()
+# .myfoldRunnerFn()

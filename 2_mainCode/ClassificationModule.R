@@ -1,6 +1,12 @@
+# Bokan edited
+
 .myClassificationBenchmarking=function(inputDataList,ncores=1,expClassName="proband",methodsList=list("reg","logReg","lda","qda","sqda","ridgeReg","lassoReg","ridgeLogReg","lassoLogReg","elasticNetLogReg","randomForest","boosting","bagging","neuralNet")){
   
-  #inputDataList=resultsPosterior;ncores=1;expClassName="proband";methodsList=list("qda")
+  inputDataList=resultsPosterior
+  ncores=1
+  expClassName="proband"
+  methodsList=list("reg")
+  
   x=unique(unlist(lapply(inputDataList,function(x){x$method})))
   PRresults=matrix(NA,nrow=length(x),ncol=length(methodsList))
   row.names(PRresults)=x
@@ -629,11 +635,11 @@
   
   cotrol=setdiff(unique(as.character(trainingLabels)),experimentClassName)
   
-  if(dim(trainingInputData)[1]!=length(trainingLabels)||dim(testInputData)[1]!=length(testLabels))
-    stop("wrong dimensions")
+  if(dim(trainingInputData)[1]!=length(trainingLabels)||dim(testInputData)[1]!=length(testLabels)){
+    stop("wrong dimensions")}
   
-  if(dim(trainingInputData)[2]!=dim(testInputData)[2])
-    stop("dimensions of training and test input data do not match!")
+  if(dim(trainingInputData)[2]!=dim(testInputData)[2]){
+    stop("dimensions of training and test input data do not match!")}
   
   for(i in 1:dim(trainingInputData)[2]){
     if(is.character(trainingInputData[,i]))
