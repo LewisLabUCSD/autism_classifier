@@ -2,4 +2,4 @@
 
 ## flowchart of the pipeline
 
-https://lucid.app/lucidchart/invitations/accept/51b0ce22-699e-47b1-ace2-a907b86834ca
+Supplementary_classifier_paper_workflow_1.png![image](https://user-images.githubusercontent.com/22181855/121842134-a9260780-cc94-11eb-9a83-1c4942de8ec4.png)
