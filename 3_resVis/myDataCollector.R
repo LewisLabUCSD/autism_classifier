@@ -34,18 +34,25 @@ args = commandArgs(trailingOnly=TRUE)
 .myDataCollector=function(args){
   # args="/Volumes/Work/Vahid_work/classification/classification/HT_as_test_v2/data/deconvoluted_genes/sampleScores/mainDataset_HT12_WG6/classificationSet/"
   # args="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/"
+  # args="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/"
+  # args="/Volumes/Work/Vahid_work/classification_newcode_data/ld_runner/"
   
   require(plyr)
   path=gsub("\"", "", args[1])
   dataList=read.table(paste0(path,"dataList.txt"))
-  path=unlist(strsplit(args,"/"))
-  path=path[-length(path)]
-  path=paste(path,collapse = "/")
-  if(length(path)>0){
-  path=paste0(path,"/")
-  } else {
+  if (length(strsplit(as.character(dataList$V1[1]),"/")[[1]])>2){
+    path=''
+  }else{
+    path=unlist(strsplit(args,"/"))
+    path=path[-length(path)]
+    path=paste(path,collapse = "/")
+    if(length(path)>0){
+      path=paste0(path,"/")
+    } else {
       path=""
-  }
+    }
+    }
+  
   PRres=""
   # line_count=0
   for(i in 1:nrow(dataList)){
@@ -110,6 +117,7 @@ args = commandArgs(trailingOnly=TRUE)
   perc85=perc85[,-which(colnames(perc85)=="name")]
   perc9=perc9[,-which(colnames(perc9)=="name")]
   perc95=perc95[,-which(colnames(perc95)=="name")]
+  
   
   PRres=.myMatrixArranger(PRres)
   ROCres=.myMatrixArranger(ROCres)

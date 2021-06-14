@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 args = commandArgs(trailingOnly=TRUE)
 
-#setwd("~/classificationModuleJabba/classificationCode/3- mainCode")
+# setwd("~/classificationModuleJabba/classificationCode/3- mainCode")
+setwd("/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/6_sample scores")
 source("WGCNAandGeneFilterationMethods.R")
 source("pipelines.R")
 source("ClassificationModule.R")
@@ -12,22 +13,28 @@ source("ClassificationModule.R")
 .myfoldRunnerFn=function(){
   require(Biobase,quietly = T)
   #arg1: directory address for each fold
-  
-  path=gsub("\"", "", args[1])
+  # args="/Volumes/Work/Vahid_work/classification_newcode_data/test_hold/"
+  # path=gsub("\"", "", args[1])
   itrCounter=0
-  while((!file.exists(paste0(path,"results.rda")))|(itrCounter<1)){
+  while(itrCounter<1){
     itrCounter=itrCounter+1
     load(paste0(path,'data.rda'))
-    #middleFns=list("pipeline2")
-    resultsMiddle=.myMiddleFn(list(data),methodList=middleFns,ncores=1,expClassName=expClassName)
+    middleFns=list("pipeline3")
+    # resultsMiddle=.myMiddleFn(list(data,methodList=middleFns,ncores=1,expClassName=expClassName)
     #posteriorFns=list('sis','pcr')
+    # load(paste0(path,'resultsMiddle.rda'))
+    posteriorFns=list('wgcna')
+    expClassName='proband'
+    #resultsPosterior=.myPosteriorFn(resultsMiddle,methodList=posteriorFns,ncores=1,expClassName=expClassName)
     resultsPosterior=.myPosteriorFn(resultsMiddle,methodList=posteriorFns,ncores=1,expClassName=expClassName)
+    save(resultsPosterior, paste0(path,'resultsPosterior_1.rda'))
     #classificationMethodsList=list('reg','lda')
     result=.myClassificationBenchmarking(resultsPosterior,ncores=1,expClassName=expClassName,methodsList=classificationMethodsList)
-    save(result,file=paste0(path,'results.rda'))
+    # save(result,file=paste0(path,'results.rda'))
   }
 }
-
+# biocLite("minet") 
+# library("minet")
 .myFoldMakerFn=function(inputLabels,sampleNames,nfold){
   inputLabels=as.factor(inputLabels)
   levLabels=levels(inputLabels)
@@ -49,7 +56,6 @@ source("ClassificationModule.R")
 }
 
 .myBenchmarkingWrapperDetailed=function(x,inputExpSet,tstLabelsList,expClassName,ncores,initializerFns,middleFns,posteriorFns,classificationMethodsList){
-  
   result=list()
   
   for(i in x){

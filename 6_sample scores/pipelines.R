@@ -3,6 +3,9 @@
 
 source("WGCNAandGeneFilterationMethods.R")
 #cov, var, cor, WGCNA, grn, zscore, SIS, lm, selectV, PLSR, CPPLS, PCR, cvplogistic, cvplogisticFast, svm, vif, logisticFwd, foba, varImportance, safs
+#############
+# bokan edit
+############
 
 #prior filteration methods: no,cov, var, cov-var,varImportance
 #midle filteratin methods: pipelines
@@ -47,7 +50,7 @@ source("WGCNAandGeneFilterationMethods.R")
     tmp=tmp[which(tmp$Freq>=(tmp$Freq[nrow(tmp)/5])),]
     dataGRN5Cntl=list(labels=labels,features=inputData[which(row.names(inputData) %in% as.character(tmp$Var1)),],testInputData=testInputData[which(row.names(testInputData) %in% as.character(tmp$Var1)),],testLabels=testLabels,method="grn5Cntl")
     result=c(result,list(dataGRN5Cntl))
-    
+
   }
   
   dataGRN1=list(labels=labels,features=inputData[which(row.names(inputData) %in% as.character(dataGRN1$Gene)),],testInputData=testInputData[which(row.names(testInputData) %in% as.character(dataGRN1$Gene)),],testLabels=testLabels,method="grn1")
@@ -737,7 +740,7 @@ source("WGCNAandGeneFilterationMethods.R")
       tmpRes=list()
       try({
       tmpRes=.myMiddleFnSwitch(inputData=dataP,labels=labels,testInputData = testInputData,testLabels=testLabels,method=methodsList[[i]],expClassName=expClassName)
-      },silent = T)
+      },silent = F)
       print(paste0(length(tmpRes)," results were collected from ",method,"_",methodsList[[i]]," route"))
       if(length(tmpRes)>0){
         for(counter in 1:length(tmpRes)){
@@ -761,6 +764,11 @@ source("WGCNAandGeneFilterationMethods.R")
 
 .myPosteriorFn=function(inputData,methodList=list("no","pcr","plsr","cppls","logisticFwd","wgcna","sis"),ncores=1,expClassName){
   print("feature data would be transposed[nrow(data)=length(labels)]")
+  # inputData = resultsMiddle
+  # methodList=posteriorFns
+  # ncores=1
+  # expClassName=expClassName
+
   require(parallel,quietly=T)
   result=list()
   ncores=min(ncores,length(inputData))
@@ -800,10 +808,15 @@ source("WGCNAandGeneFilterationMethods.R")
 }
 
 .myPosteriorFnDetailed=function(x,inputData,methodList,expClassName){
+  # x=1:length(inputData)
+  # inputData=inputData
+  # methodList=methodList[!indSelParMethods]
+  # expClassName=expClassName
   results=list()
   dfErrors=data.frame(inputId=0,method="a",stringsAsFactors = F)
   #dfNew=data.frame(fcounter=0,scounter=0,internalcounter=0,method="",stringsAsFactors = F)
   for(i in x){
+    # i=1
     tmpData=inputData[[i]]$features
     tmpLabels=inputData[[i]]$labels
     tmpMethod=inputData[[i]]$method
@@ -812,8 +825,9 @@ source("WGCNAandGeneFilterationMethods.R")
     for(j in 1:length(methodList)){
       tmpRes=list()
       try({
-      tmpRes=.myPosteriorFnSwitch(tmpData,tmpLabels,testInputData = tmpTstInputData,testLabels = tmpTstLabels,expClassName=expClassName,methodList[[j]])
-      },silent = T)
+        # j=1
+      tmpRes=.myPosteriorFnSwitch(tmpData,tmpLabels,testInputData = tmpTstInputData,testLabels = tmpTstLabels,expClassName=expClassName,method=methodList[[j]],tmpMethod=tmpMethod)
+      },silent = F)
       print(paste0(length(tmpRes)," results were collected from ",tmpMethod,"_",methodList[[j]]," route"))
       if(length(tmpRes)>0){
           tmpResMethod=paste0(tmpMethod,"_",methodList[[j]])
@@ -853,35 +867,36 @@ source("WGCNAandGeneFilterationMethods.R")
          pipeline6=.pipeline6(inputData,labels=labels,testInputData = testInputData,testLabels = testLabels,expClassName=expClassName))
 }
 
-.myPosteriorFnSwitch=function(inputData,labels,testInputData,testLabels,expClassName,method){
+.myPosteriorFnSwitch=function(inputData,labels,testInputData,testLabels,expClassName,method,tmpMethod=''){
+  
   switch(method,
          no={return(.myPosteriorNoFn(inputData,labels = labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName))},
-         wgcna={return(.myWGCNAwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName))},
-         pcr={return(.myPCRwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName))},
-         plsr={return(.myPLSRwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName))},
-         cppls={return(.myCPPLSwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName))},
+         wgcna={return(.myWGCNAwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName, tmpMethod))},
+         pcr={return(.myPCRwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName,tmpMethod))},
+         plsr={return(.myPLSRwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName,tmpMethod))},
+         cppls={return(.myCPPLSwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName,tmpMethod))},
          sis={return(.mySISwrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName))},
          logisticFwd={return(.myLogisticFwdWrapperFn(inputData,labels,testInputData=testInputData,testLabels=testLabels,expClassName=expClassName))})
 }
 
 
 
-.myWGCNAwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName){
-  #inputData=resultsMiddle[[1]]$features
-  #labels=resultsMiddle[[1]]$labels
-  #testInputData = resultsMiddle[[1]]$testInputData
-  #testLabels = resultsMiddle[[1]]$testLabels
-  #inputExpSet=inputData;colIds="IdsAdded";diagnosisColName="labelsAdded";testInputData=NULL;otherCovariates=NULL;output.directory=NULL;softPowerValue=NULL;saveModuleGeneList=F;mergeModules=T
-  #pData(inputExpSet)=cbind(pData(inputExpSet),IdsAdded=colnames(inputExpSet),labelsAdded=labels)
-  #tmpExpSet=inputExpSet
-  
+.myWGCNAwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName,tmpMethod){
+  # inputData=resultsMiddle[[1]]$features
+  # labels=resultsMiddle[[1]]$labels
+  # testInputData = resultsMiddle[[1]]$testInputData
+  # testLabels = resultsMiddle[[1]]$testLabels
+  # inputExpSet=inputData;colIds="IdsAdded";diagnosisColName="labelsAdded";testInputData=NULL;otherCovariates=NULL;output.directory=NULL;softPowerValue=NULL;saveModuleGeneList=F;mergeModules=T
+  # pData(inputExpSet)=cbind(pData(inputExpSet),IdsAdded=colnames(inputExpSet),labelsAdded=labels)
+  # tmpExpSet=inputExpSet
+
   resWgcna=list()
   try({
     msgs=capture.output({
-    resWgcna=.myGeneFilteration(inputData,labels=labels,testInputData = testInputData,testLabels = testLabels,expClassName=expClassName,method = "WGCNA")
+    resWgcna=.myGeneFilteration(inputData,labels=labels,testInputData = testInputData,testLabels = testLabels,expClassName=expClassName,method = "WGCNA",tmpMethod=tmpMethod)
     })
-  }, silent = T)
-  
+  }, silent = FALSE)
+  print(tmpMethod)
   if(length(resWgcna)>0)
   {
     tstInputData=resWgcna[["testEigenGenes"]]
@@ -914,20 +929,20 @@ source("WGCNAandGeneFilterationMethods.R")
   }
 }
 
-.myPCRwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName){
-  resPcr=.myGeneFilteration(inputData,labels,testInputData = testInputData,testLabels = testLabels,expClassName=expClassName,method = "PCR")
+.myPCRwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName,tmpMethod=''){
+  resPcr=.myGeneFilteration(inputData,labels,testInputData = testInputData,testLabels = testLabels,expClassName=expClassName,method = "PCR",tmpMethod=tmpMethod)
   resPcr=list(list(labels=labels,features=resPcr[["results"]],testInputData=resPcr[['testInputData']],testLabels=testLabels,expClassName=expClassName,method="pcr"))
   return(resPcr)
 }
 
-.myPLSRwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName){
-  resPlsr=.myGeneFilteration(inputData,labels,testInputData,testLabels,expClassName=expClassName,method = "PLSR")
+.myPLSRwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName,tmpMethod=''){
+  resPlsr=.myGeneFilteration(inputData,labels,testInputData,testLabels,expClassName=expClassName,method = "PLSR",tmpMethod=tmpMethod)
   resPlsr=list(list(labels=labels,features=resPlsr[["results"]],testInputData=resPlsr[['testInputData']],testLabels=testLabels,method="plsr"))
   return(resPlsr)
 }
 
-.myCPPLSwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName){
-  resCppls=.myGeneFilteration(inputData,labels,testInputData,testLabels,expClassName=expClassName,method = "CPPLS")
+.myCPPLSwrapperFn=function(inputData,labels,testInputData,testLabels,expClassName,tmpMethod=''){
+  resCppls=.myGeneFilteration(inputData,labels,testInputData,testLabels,expClassName=expClassName,method = "CPPLS",tmpMethod=tmpMethod)
   if("results" %in% names(resCppls)){
     resCppls=list(list(labels=labels,features=resCppls[["results"]],testInputData=resCppls[['testInputData']],testLabels=testLabels,method="cppls"))
   } else {

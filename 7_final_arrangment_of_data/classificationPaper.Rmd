@@ -11,18 +11,31 @@ editor_options:
 ```{r}
 .mySampleScoreArrangerFn=function(inputPath){
   #This function reads in the sample scores (between 0 and 1)
-  # inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/main_runner_new//"
+  # inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/"
+  # inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/"
 
   resCombined=list()
-  tmpFiles=list.files(inputPath)
-  tmpFiles=intersect(tmpFiles,paste0("out",1:25))
+  # tmpFiles=list.files(inputPath)
+  tmpFiles = read.table(paste0(inputPath,"dataList.txt"))
+  if (length(strsplit(as.character(dataList$V1[1]),"/")[[1]])>2){
+    path=''
+  }else{
+  path=unlist(strsplit(inputPath,"/"))
+  path=path[-length(path)]
+  path=paste(path,collapse = "/")
+  path=paste0(path,"/")
+    }
+  
+  # tmpFiles = as.vector(tmpFiles)
   if((length(tmpFiles))!=25){
-    print(paste("caution: number of files is",(length(tmpFiles))))
+    print(paste("caution: number of files is",(length(tmpFiles$V1))))
   }
   
-  
-  for(i in 1:(length(tmpFiles))){
-    load(paste0(inputPath,tmpFiles[i],"/results.rda"))
+  for(i in 1:(length(tmpFiles$V1))){
+    # 
+    # strsplit(status,"_")
+
+    load(paste0(path,tmpFiles$V1[i],"results.rda"))
     
     tmp=result$ROCdf
     
@@ -79,7 +92,7 @@ library(reshape2)
 library(limma)
 library(gplots)
 
-.myDataArrangerFn=function(inputPath,inputROCthr=0.7,inputROCPower=2,colorset=c("black","red"),wCompleteDS=F){
+.myDataArrangerFn=function(inputPath,inputROCthr=0.7,inputROCPower=2,colorset=c("black","red"),wCompleteDS=F, overlapped_model=NULL,make_composite=F ){
   #data$average: simple average of sample scores across folds for the same subject with the same features+classifier
   #data$concensus: concensus scores of models with ROCthr >inputROCthr
   # inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/"
@@ -87,10 +100,7 @@ library(gplots)
   # inputROCPower=2
   # colorset=c("black","red")
   # wCompleteDS=F
-  # inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_longitudinal/"
-  # inputROCthr=0.7
-  # inputROCPower=2
-  # colorset=c("black","red")
+  inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/ld_runner/"
   # load(paste0(inputPath,"ResultsArranged.rda"))
   weightsROC=.myResultOrganizerFn(paste0(inputPath,"ResultsArranged.rda"),replaceZero = T)
   load(paste0(inputPath,"ResultsArranged.rda"))
@@ -130,7 +140,33 @@ library(gplots)
   dev.off()
   data=.mySampleScoreArrangerFn(inputPath)
 
-
+  #   
+  # ROCmat=ROCres
+  # ROCmat=ROCmat[,-which(colnames(ROCmat)=="sqda")]
+  # slpallete=c(blue2green(9),colorRampPalette(c("green", "yellow"))(9)[-1],colorRampPalette(c("yellow", "red"))(6)[-1])
+  # hm=heatmap.2(as.matrix(ROCmat), margins = c(5,10),trace="none",density.info=c("none"),col=slpallete[max(round(min(ROCmat),1)*25,2):(round(max(ROCmat),2)*25)],labRow = F)
+  # #finding high performing cluster
+  # ##set k in a way that separates the high performing cluster
+  # 
+  # k=5
+  # n=cutree(as.hclust(hm$rowDendrogram),k)
+  # nPalette=WGCNA:::labels2colors(seq(1:k))
+  # #nPalette[4]="black"
+  # 
+  # nPalette=nPalette[n]
+  # 
+  # #nPalette[nPalette=="brown"]="orange"
+  # 
+  # heatmap.2(as.matrix(ROCmat), margins = c(5,10),trace="none",density.info=c("none"),col=slpallete[max(round(min(ROCmat),1)*25,2):(round(max(ROCmat),2)*25)],labRow = F,RowSideColors=nPalette)
+  # #correspondence of colors with cluster numbers
+  # data.frame(Number=1:k,color=WGCNA:::labels2colors(seq(1:k)))
+  # 
+  # #which color?
+  # slColor=4
+  # slClusters=ROCmat[n==slColor,]
+  # pathList=row.names(slClusters)
+  # 
+  # save(pathList,file=paste0(path,"selectedPathList.rda"))
 
   data=do.call("rbind",data)
   
@@ -150,6 +186,11 @@ library(gplots)
   x2=unlist(lapply(x2,function(x)paste(x[2:length(x)],collapse = "_")))
   x2=paste0(x2,"_",as.character(x$variable))
   x2=gsub("independent","real",x2)
+  # x2=gsub("perm1","real",x2)
+  # x2=gsub("perm2","real",x2)
+  # x2=gsub("perm3","real",x2)
+  # x2=gsub("perm4","real",x2)
+  # x2=gsub("perm5","real",x2)
   x$status=x2
   
   data=data[data$statusUpdated %in% x$status,]
@@ -183,9 +224,14 @@ library(gplots)
   #ref_data$statusUpdated=gsub("real_","",as.character(ref_data$statusUpdated))
   #tmp=merge(data$average,ref_data,by="statusUpdated")
   #tmp=tmp[!duplicated(tmp$statusUpdated),]
-  
+
   data$average$modWeightROC=data$average$weightROC-0.7
+  
   data$average$modWeightROC[which(data$average$modWeightROC<0)]=0
+  if(make_composite){
+    print(paste0(sum(data$average$statusUpdated %in% overlapped_model), " subjects used to make composite model"))
+    data$average$modWeightROC[!which(data$average$statusUpdated %in% overlapped_model)]=0
+  }
   data$average$weightedEstimate=data$average$estimated*(data$average$modWeightROC)^inputROCPower
   
   
@@ -203,7 +249,6 @@ library(gplots)
   rm(status)
   
   tmp=dcast(data = data$average,formula = statusUpdated~sampleName,fun.aggregate = sum,value.var = "weightedEstimate")
-
 
   df=data.frame(sampleName=colnames(tmp),isSel=1,stringsAsFactors = F)
   df=df[!duplicated(df$sampleName),]
@@ -234,7 +279,7 @@ library(gplots)
 
   data$concensus$weightedEstimate=data$concensus$weightedEstimate - min(data$concensus$weightedEstimate)
   data$concensus$weightedEstimate=data$concensus$weightedEstimate/max(data$concensus$weightedEstimate)
-  
+   
   print(table(data$concensus$real,data$concensus$weightedEstimate>quantile(data$concensus$weightedEstimate,0.9)))
   print(table(data$concensus$real,data$concensus$weightedEstimate>quantile(data$concensus$weightedEstimate,0.8)))
   print(table(data$concensus$real,data$concensus$weightedEstimate>quantile(data$concensus$weightedEstimate,0.75)))
@@ -308,7 +353,12 @@ xTest$datasetName="Test"
 xLD=data.frame(id=row.names(dataLD$data$weightsROC),dataLD$data$weightsROC,stringsAsFactors = F)
 xLD=melt(xLD,id.vars = "id")
 xLD$datasetName="LD"
-ROCscombined=rbind(xMain,xTest,xLong,xLD)
+
+xLD_ASD=data.frame(id=row.names(dataLD_ASD$data$weightsROC),dataLD_ASD$data$weightsROC,stringsAsFactors = F)
+xLD_ASD=melt(xLD_ASD,id.vars = "id")
+xLD_ASD$datasetName="LD_ASD"
+ROCscombined=rbind(xMain,xTest,xLong,xLD,xLD_ASD)
+
 return(ROCscombined)
 }
 
@@ -336,6 +386,9 @@ return(list(indxASDPoor=indxPoor,indxTDPoor=indxTD))
 #dataLong=.myDataArrangerFn(inputPath="~/OneDrive - UC San Diego/Vahid/OneDrive - UC San Diego/classificationPaper/HT_as_test_05142019/ageBalanced_decov_genes/validation/Longitudinaltest/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","red"),wCompleteDS=F)
 
 #dataLD=.myDataArrangerFn(inputPath="~/OneDrive - UC San Diego/Vahid/OneDrive - UC San Diego/classificationPaper/HT_as_test_05142019/ageBalanced_decov_genes/validation/LDtestDataset_HT12/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"),wCompleteDS=F)
+
+
+
 ```
 
 
@@ -358,24 +411,45 @@ dataLong=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_ne
 
 dataLD=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_LD/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))#,wCompleteDS=T)
 
-#save(dataLD,dataMain,dataLong,dataTest,file="~/Desktop/myData/classification_age_balanced05162019_wF_v2.rda")
 
-save(dataLD,dataMain,dataLong,dataTest,file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_all.rda")
+dataLD_ASD=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/ld_runner/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))
+#save(dataLD,dataMain,dataLong,dataTest,file="~/Desktop/myData/classification_age_balanced05162019_wF_v2.rda")
+load(file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_all.rda")
+save(dataLD,dataMain,dataLong,dataTest, dataLD_ASD,file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_all.rda")
 
 rm(list=ls())
-load("~/Documents/archive/papers/classificationPaper/HT_as_test_05142019/ageBalanced_decov_genes/perm1/ResultsArranged.rda")
+setwd("/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/3_resVis/")
+
+source('myDataCollector.R')
+args="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm1/"
+args="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm2/"
+.myDataCollector(args)
+args="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm3/"
+.myDataCollector(args)
+args="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm4/"
+.myDataCollector(args)
+args="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm5/"
+.myDataCollector(args)
+
+
+# dataPerm=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm1/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))#,wCompleteDS=T)
+# dataPerm=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm2/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))
+# dataPerm=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm3/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))
+# dataPerm=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm1/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))
+# dataPerm=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm1/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))
+load("/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm1/ResultsArranged.rda")
 perm1=ROCres
 rm(perc85,perc9,perc95,PRres,res9,res85,res95,ROCres)
-load("~/Documents/archive/papers/classificationPaper/HT_as_test_05142019/ageBalanced_decov_genes/perm2/ResultsArranged.rda")
+load("/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm2/ResultsArranged.rda")
 perm2=ROCres
 rm(perc85,perc9,perc95,PRres,res9,res85,res95,ROCres)
-load("~/Documents/archive/papers/classificationPaper/HT_as_test_05142019/ageBalanced_decov_genes/perm3/ResultsArranged.rda")
+load("/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm3/ResultsArranged.rda")
 perm3=ROCres
 rm(perc85,perc9,perc95,PRres,res9,res85,res95,ROCres)
-load("~/Documents/archive/papers/classificationPaper/HT_as_test_05142019/ageBalanced_decov_genes/perm4/ResultsArranged.rda")
+load("/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm4/ResultsArranged.rda")
 perm4=ROCres
 rm(perc85,perc9,perc95,PRres,res9,res85,res95,ROCres)
-load("~/Documents/archive/papers/classificationPaper/HT_as_test_05142019/ageBalanced_decov_genes/perm5/ResultsArranged.rda")
+load("/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm5/ResultsArranged.rda")
 perm5=ROCres
 rm(perc85,perc9,perc95,PRres,res9,res85,res95,ROCres)
 
@@ -396,17 +470,174 @@ all(perm1==perm2)
 sum(perm1>0.8)+sum(perm2>0.8)+sum(perm3>0.8)+sum(perm4>0.8)+sum(perm5>0.8)
 
 ```
+```{r}
+
+
+dataTandM=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_test_main_added/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))#,wCompleteDS=T)
+save(dataTandM, file=)
+
+```
 
 
 ```{r}
+library(ggplot2)
+library(reshape2)
+library(gplots)
+library(WGCNA)
+library(colorRamps)
 rm(list=ls())
+
 load("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_all.rda")
+.myResultOrganizerFn=function(inputData,countThr=max(inputData[[2]]),replaceZero=F){
+  #results with number of folds less than the countThr are set to zero
+  #zeros can be replaced with 0.5 (ROC and PR)
+
+  inputData[[1]][inputData[[2]]<countThr]=0
+  if(replaceZero){
+    inputData[[1]][inputData[[1]]==0]=0.5
+  }
+  res=inputData[[1]]
+
+  thr=0
+  if(replaceZero){
+    thr=0.5
+  }
+  x=apply(res,1,function(x) sum(x==thr))
+  res=res[which(x<(ncol(inputData[[1]])-1)),]
+  return(res)
+}
+load("/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/ResultsArranged.rda")
+
+
+perc85=.myResultOrganizerFn(perc85)
+perc9=.myResultOrganizerFn(perc9)
+perc95=.myResultOrganizerFn(perc95)
+res85=.myResultOrganizerFn(res85)
+res9=.myResultOrganizerFn(res9)
+res95=.myResultOrganizerFn(res95)
+ROCres=.myResultOrganizerFn(ROCres,replaceZero = T)
+PRres=.myResultOrganizerFn(PRres,replaceZero = T)
+
+tmp=which(res95>0.8&perc95>0.5,arr.ind = T)
+tmp=data.frame(feature=row.names(res95)[tmp[,1]],classification=colnames(res95)[tmp[,2]],value=res95[tmp],perc=perc95[tmp])
+tmp$name=paste0(tmp$feature,"_",tmp$classification)
+tmpROC=ROCres[which(row.names(ROCres) %in% tmp$feature),]
+tmpROC=tmpROC[,colnames(tmpROC) %in% unique(tmp$classification)]
+x=which(tmpROC>0.8,arr.ind = T)
+tmpROC=data.frame(feature=row.names(tmpROC)[x[,1]],classification=colnames(tmpROC)[x[,2]],roc=tmpROC[x])
+tmpROC$name=paste0(tmpROC$feature,"_",tmpROC$classification)
+
+tmp=merge(tmpROC,tmp,by="name")
+
+#global heatmap for AUROC
+
+ROCmat=ROCres
+ROCmat=ROCmat[,-which(colnames(ROCmat)=="sqda")]
+slpallete=c(blue2green(9),colorRampPalette(c("green", "yellow"))(9)[-1],colorRampPalette(c("yellow", "red"))(6)[-1])
+
+inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/"
+pdf(file=paste0(inputPath,"clustering_discovery.pdf"))
+hm=heatmap.2(as.matrix(ROCmat), margins = c(5,10),trace="none",density.info=c("none"),col=slpallete[max(round(min(ROCmat),1)*25,2):(round(max(ROCmat),2)*25)],labRow = F)
+dev.off()
+#finding high performing cluster
+##set k in a way that separates the high performing cluster
+
+k=5
+n=cutree(as.hclust(hm$rowDendrogram),k)
+nPalette=WGCNA:::labels2colors(seq(1:k))
+#nPalette[4]="black"
+
+nPalette=nPalette[n]
+
+#nPalette[nPalette=="brown"]="orange"
+
+heatmap.2(as.matrix(ROCmat), margins = c(5,10),trace="none",density.info=c("none"),col=slpallete[max(round(min(ROCmat),1)*25,2):(round(max(ROCmat),2)*25)],labRow = F,RowSideColors=nPalette)
+#correspondence of colors with cluster numbers
+data.frame(Number=1:k,color=WGCNA:::labels2colors(seq(1:k)))
+
+#which color?
+slColor=3
+slClusters=ROCmat[n==slColor,]
+# get the mean of slClusters
+min(apply(slClusters,1, mean))
+mean(apply(slClusters,1, mean))
+pathList=row.names(slClusters)
+
+save(pathList,file=paste0(path,"selectedPathList.rda"))
+```
+
+```{r}
+
 
 # write.table(dataMain[["data"]][["weightsROC"]],file="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/roc_mean1.csv",sep = ",")
 
 
+#perm1 dataset
+#Fraction of high performing paths that are in common between the main and perm1 datasets
+load("/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm1/ResultsArranged.rda")
+perm1=ROCres
+perm1[[1]][perm1[[2]]<5]=0.5
+perm1=perm1[[1]]
+perm1=perm1[,-which(colnames(perm1)=="sqda")]
+row.names(perm1)=gsub("perm1","real",row.names(perm1))
+x=perm1
+x=x[row.names(x) %in% row.names(dataMain$data$weightsROC), ]
+
+x2=as.data.frame(which(dataMain$data$weightsROC>0.8, arr.ind = T))
+
+counter=0
+x2=x2[row.names(dataMain$data$weightsROC)[x2$row] %in% row.names(perm1),]
+for(i in 1:nrow(x2)){
+  if(x[row.names(dataMain$data$weightsROC)[x2$row[i]],colnames(dataMain$data$weightsROC)[x2$col[i]]]>0.8){
+    counter=counter+1
+  }
+
+}
+counter
+perm1=PRres
+perm1[[1]][perm1[[2]]<5]=0.5
+perm1=perm1[[1]]
+perm1=perm1[,-which(colnames(perm1)=="sqda")]
+
+perm1_1 <- perm1[order(-perm1)]
+
+data <- perm1_1[1:1067]
+
+the_table_ = data.frame(value=data)
+the_table_$sex='F'
+ggplot(the_table_, aes(x=value)) +
+  geom_histogram(fill="white", color="black",binwidth=0.01)+
+  labs(title="Top 5% permutation AUC-ROC",x="AUC-ROC score", y = "Count")+
+  theme_classic()
+
+library(ggplot2)
+data = data.frame("AUC_ROC"=data)
+ggplot(data, aes(x=AUC_ROC)) + 
+  geom_histogram(color="black", fill="white")
+row.names(perm1)=gsub("perm1","real",row.names(perm1))
+x=perm1
+x=x[row.names(x) %in% row.names(dataMain$data$PR_values), ]
+
+ggplot(the_table_, aes(x=value, color=sex, fill=sex)) +
+geom_histogram(aes(y=..density..), position="identity", alpha=0.5)+
+scale_color_manual(values=c("#999999"))+
+scale_fill_manual(values=c("#999999"))+
+  labs(title="Top 5% permutation AUC-ROC",x="AUC-ROC score", y = "Count")+
+theme_classic()
+
+counter_pr = 0
+x_pr=as.data.frame(which(dataMain$data$PR_values>0.8, arr.ind = T))
+x_pr=x_pr[row.names(dataMain$data$PR_values)[x_pr$row] %in% row.names(perm1),]
+for(i in 1:nrow(x_pr)){
+  if(x_pr[row.names(dataMain$data$PR_values)[x2$row[i]],colnames(dataMain$data$PR_values)[x2$col[i]]]>0.8){
+    print()
+    counter_pr=counter_pr+1
+  }
+
+}
+counter_pr
 #Long dataset
-#Fraction of high performing paths that are in common between the main and test datasets
+#Fraction of high performing paths that are in common between the main and long datasets
 row.names(dataLong$data$weightsROC)=gsub("independent","real",row.names(dataLong$data$weightsROC))
 
 x=dataLong$data$weightsROC
@@ -420,12 +651,24 @@ for(i in 1:nrow(x2)){
   if(x[row.names(dataMain$data$weightsROC)[x2$row[i]],colnames(dataMain$data$weightsROC)[x2$col[i]]]>0.8){
     counter=counter+1
   }
-  
-}
-x2=as.data.frame(which(dataMain$data$weightsROC>0.8,arr.ind = T))
 
+}
+
+counter_pr = 0
+x_pr=dataMain$data$PR_values
+for(i in 1:nrow(x2)){
+  if(x_pr[row.names(dataMain$data$weightsROC)[x2$row[i]],colnames(dataMain$data$weightsROC)[x2$col[i]]]>0.8){
+    counter_pr=counter_pr+1
+  }
+
+}
+counter_pr
+# x2=as.data.frame(which(dataMain$data$weightsROC>0.8,arr.ind = T))
+
+dataMain$data$PR_values
 counter/nrow(x2)
 counter
+
 #Test dataset
 #Fraction of high performing paths that are in common between the main and test datasets
 row.names(dataTest$data$weightsROC)=gsub("independent","real",row.names(dataTest$data$weightsROC))
@@ -436,14 +679,27 @@ x=x[row.names(x) %in% row.names(dataMain$data$weightsROC),]
 x2=as.data.frame(which(dataMain$data$weightsROC>0.8,arr.ind = T))
 
 counter=0
-slFeatures=c()
+slFeatures = c()
+sl_models = c()
+ 
 x2=x2[row.names(dataMain$data$weightsROC)[x2$row] %in% row.names(dataTest$data$weightsROC),]
 for(i in 1:nrow(x2)){
   if(x[row.names(dataMain$data$weightsROC)[x2$row[i]],colnames(dataMain$data$weightsROC)[x2$col[i]]]>=0.75){
     counter=counter+1
     slFeatures=c(slFeatures,row.names(dataMain$data$weightsROC)[x2$row[i]])
+    sl_models=c(sl_models, paste(row.names(dataMain$data$weightsROC)[x2$row[i]],colnames(dataMain$data$weightsROC)[x2$col[i]], sep="_"))
   }
 }
+sl_models
+name_refined = c()
+for(i in 1:length(sl_models)){
+  temp_name = unlist(strsplit(sl_models[i],"_"))
+  temp_name = temp_name[-1]
+  temp_name=paste(temp_name,collapse = "_")
+  name_refined = c(name_refined, temp_name)
+}
+name_refined
+
 x2=as.data.frame(which(dataMain$data$weightsROC>0.8,arr.ind = T))
 
 counter/nrow(x2)
@@ -470,10 +726,35 @@ x2=as.data.frame(which(dataMain$data$weightsROC>0.8,arr.ind = T))
 
 counter/nrow(x2)
 
+# LD_ASD
+row.names(dataLD_ASD$data$weightsROC)=paste0("real",row.names(dataLD_ASD$data$weightsROC), sep="")
+
+x=dataLD_ASD$data$weightsROC
+x=x[row.names(x) %in% row.names(dataMain$data$weightsROC),]
+
+x2=as.data.frame(which(dataMain$data$weightsROC>0.8,arr.ind = T))
+
+counter=0
+slFeatures=c()
+x2=x2[row.names(dataMain$data$weightsROC)[x2$row] %in% row.names(dataLD_ASD$data$weightsROC),]
+for(i in 1:nrow(x2)){
+  if(x[row.names(dataMain$data$weightsROC)[x2$row[i]],colnames(dataMain$data$weightsROC)[x2$col[i]]]>=0.75){
+    counter=counter+1
+    slFeatures=c(slFeatures,row.names(dataMain$data$weightsROC)[x2$row[i]])
+  }
+}
+x2=as.data.frame(which(dataMain$data$weightsROC>0.8,arr.ind = T))
+
+counter/nrow(x2)
+counter
+
 
 #density plots of model ROCs
+inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/"
+load("/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/perm1/ResultsArranged.rda")
+perm1=ROCres
 ROCscombined=.myROCDensityDataFn()
-
+ROCperm = perm1
 ROCperm[[1]][ROCperm[[2]]<5]=0.5
 ROCperm=ROCperm[[1]]
 ROCperm=ROCperm[,-which(colnames(ROCperm)=="sqda")]
@@ -483,30 +764,44 @@ ROCperm$datasetName="perm"
 ROCperm$variable=as.character(ROCperm$variable)
 ROCscombined$variable=as.character(ROCscombined$variable)
 ROCscombined=rbind(ROCscombined,ROCperm)
-ggplot(ROCscombined,aes(color=datasetName,fill=datasetName,value))+geom_density(size=1)+scale_color_manual(values=c("green","orange","red",NA,"pink"))+scale_fill_manual(values=c(NA,NA,NA,"gray",NA))+theme_bw()+theme(panel.grid = element_blank(),axis.text = element_text(color = "black"))+geom_vline(xintercept = 0.5,color="purple")+xlab("AUC-ROC")
+#### figure 1.x perm_vs_all.pdf
+pdf(file=paste0(inputPath,"perm_vs_all.pdf"), width = 8, height = 6)
+ggplot(ROCscombined,aes(color=datasetName,fill=datasetName,value))+geom_density(size=0.6)+
+  scale_color_manual(values=c("green",'cyan',"orange","red","gray","pink"),labels=c('LD-TD','ASD-LD', 'Longitudinal ASD-TD', 'Discovery ASD-TD', 'Permutation','Independent ASD-TD'))+scale_fill_manual(values=c(NA,NA,NA,NA,"gray",NA))+theme_bw()+theme(panel.grid = element_blank(),axis.text = element_text(color = "black"))+geom_vline(xintercept = 0.5,color="purple")+xlab("AUC-ROC")
+  # scale_fill_discrete(name='Dataset name', )
+dev.off()
 
-
+#### Suppl figure x main_boxplot.pdf
 pdf(file=paste0(inputPath,"main_boxplot.pdf"))
-
 ggplot(dataMain$data$concensus,aes(factor(real),weightedEstimate))+geom_boxplot(outlier.shape = NA)+theme_bw()+geom_jitter(aes(fill=factor(real)),width = 0.4,shape=21)+ggtitle("Evaluation data")+theme(legend.position = "none",axis.text = element_text(color="black"))+xlab("DX")+ylab("Sample score")
 dev.off()
 
 pdf(file=paste0(inputPath,"test_boxplot.pdf"))
-ggplot(dataTest$data$concensus,aes(factor(real),weightedEstimate))+geom_boxplot(outlier.shape = NA)+theme_bw()+geom_jitter(aes(fill=factor(real)),width = 0.4,shape=21)+ggtitle("Test data")+theme(legend.position = "none",axis.text = element_text(color="black"))+xlab("DX")+ylab("Sample score")
+ggplot(dataTest$data$concensus,aes(factor(real),weightedEstimate))+geom_boxplot(outlier.shape = NA)+theme_bw()+geom_jitter(aes(fill=factor(real)),width = 0.4,shape=21)+ggtitle("Test data")+theme(legend.position = "none",axis.text = element_text(color="black"))+xlab("DX")+ylab("Sample score")+geom_hline(yintercept=0.7)
+dev.off()
+pdf(file=paste0(inputPath,"TandM_boxplot.pdf"))
+
+dataTandM$data$concensus$group='test'
+dataTandM$data$concensus$group[ which(dataTandM$data$concensus$sampleName %in% dataMain$data$concensus$sampleName)]='main'
+ggplot(dataTandM$data$concensus,aes(fill=factor(real),y=weightedEstimate, x=group), )+geom_boxplot(outlier.shape = NA)+theme_bw()+geom_jitter(aes(x=group),width = 0.4,shape=21)+ggtitle("Test data")+theme(legend.position = "none",axis.text = element_text(color="black"))+xlab("DX")+ylab("Sample score")+geom_hline(yintercept=0.7)
 dev.off()
 
-pdf(file=paste0(inputPath,"main_test_boxplot.pdf"))
 new_table=dataMain$data$concensus
 nrow(new_table)
 new_table=rbind(dataMain$data$concensus, dataTest$data$concensus)
 plate=c(rep('main', 175), rep('test',65))
 new_table$plate = plate
+pdf(file=paste0(inputPath,"main_test_boxplot.pdf"),width = 8, height = 6)
 ggplot(new_table,aes(x = factor(real), y=weightedEstimate, fill=factor(plate)))+
   geom_boxplot(outlier.shape = NA)+
-  theme_bw()+
+  theme_bw()+geom_hline(yintercept = 0.7514051,linetype='dashed')+
   # geom_jitter(width = 0.2, alpha=0.6, shape=21)+
-  geom_point(position=position_jitterdodge(dodge.width=0.7), shape=21)+
-  ggtitle("Evaluation data")+theme(legend.position = "none", axis.text = element_text(color="black"))+xlab("DX")+ylab("Sample score")
+  geom_point(position=position_jitterdodge(dodge.width=0.75), shape=1)+
+  ggtitle("Evaluation data")+
+  theme(legend.position = "right", axis.text = element_text(color="black"))+
+  labs(x="TD - ASD",  y="Composite sample score")+
+  scale_fill_discrete(name='Dataset', labels=c('Discoveray','Independent'))+
+  scale_x_discrete(labels=c("TD", "ASD"))
 dev.off()
 
 pdf(file=paste0(inputPath,"long_boxplot.pdf"))
@@ -531,44 +826,111 @@ legend(0.3, 0.3, legend=c("Main", "Test"),
        col=c("black", "red"), lty=c(1,1), cex=1.2)
 dev.off()
 
+```
+
+```{r}
 #correlation with clinical characteristics
 # load("/Volumes/Work/Vahid_work/classification_newcode_data/inputDataJabba_main.rda")
 # write.table(inputExpData@phenoData@data, file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/main_pheno.csv",sep = ",")
 main_pheno_up <- read.csv("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/main_pheno_up.csv", row.names=1)
+
 dataMain$data$concensus$final_ADOS_CoSoTot = main_pheno_up[dataMain$data$concensus$sampleName, 'final_ADOS_CoSoTot']
 dataMain$data$concensus$recentDxJ_dxCode = main_pheno_up[dataMain$data$concensus$sampleName, 'recentDxJ_dxCode']
 dataMain$data$concensus$recentDxJ_ageMo = main_pheno_up[dataMain$data$concensus$sampleName, 'recentDxJ_ageMo']
+dataMain$data$concensus$subjectID = main_pheno_up[dataMain$data$concensus$sampleName, 'subjectId']
+dataMain$data$concensus$sampleLabel="other"
+dataMain$data$concensus$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="TD"]="TD"
+# expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="other"]="TD"
+mean(dataMain$data$concensus$weightedEstimate[dataMain$data$concensus$recentDxJ_dxCode=="ASD"])
+print('median')
+print(median(dataMain$data$concensus$weightedEstimate[dataMain$data$concensus$recentDxJ_dxCode=="ASD"]))
+the_median = median(dataMain$data$concensus$weightedEstimate[dataMain$data$concensus$recentDxJ_dxCode=="ASD"])
+dataMain$data$concensus$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="ASD"&dataMain$data$concensus$weightedEstimate>=the_median]="easy"
+dataMain$data$concensus$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="ASD"&dataMain$data$concensus$weightedEstimate<the_median]="hard"
+write.table(dataMain$data$concensus, file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/main_consensus.csv",sep = ",")
+# cor(, )
 
-cor(dataMain$data$concensus$weightedEstimate, dataMain$data$concensus$final_ADOS_CoSoTot,use="complete.obs")
-ggplot(dataMain$data$concensus[dataMain$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(as.numeric(final_ADOS_CoSoTot),weightedEstimate,color=recentDxJ_dxCode))+geom_point()+geom_smooth(method = "lm")+ggtitle("Eval dataset")
+cor.test(dataMain$data$concensus$weightedEstimate,dataMain$data$concensus$final_ADOS_CoSoTot,use="complete.obs") 
 
+inputPath = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/"
+pdf(file=paste0(inputPath,"Suppl_ADOS_CoSoTot_vs_MainSubgroup_corr.pdf"),width = 3.5, height = 4)
+ggplot(dataMain$data$concensus[dataMain$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(as.numeric(final_ADOS_CoSoTot),weightedEstimate, fill=recentDxJ_dxCode))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title='Eval', x = "ADOS_CoSoTot", y='Composite Score')+
+  ggtitle("ADOS_CoSoTot vs Main Subgroup")+
+  theme(legend.position = "none",axis.text = element_text(color="black"))
+dev.off()
 
+pdf(file=paste0(inputPath,"Suppl_ADOS_CoSoTot_vs_MainSubgroup_box.pdf"),width = 3.5, height = 4)
+ggplot(dataMain$data$concensus[dataMain$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(sampleLabel,as.numeric(final_ADOS_CoSoTot)))+
+  geom_boxplot(outlier.shape = NA)+theme_bw()+geom_jitter(aes(fill=factor(sampleLabel)), width = 0.4,shape=21)+ggtitle("ADOS_CoSoTot vs Main Subgroup")+theme(legend.position = "none",axis.text = element_text(color="black"))+xlab("Subgroup")+ylab("Sample score") 
+dev.off()
 
 load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/out1/data.rda")
 write.table(data[["testInputData"]]@phenoData@data, file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/test_pheno.csv",sep = ",")
-ggplot(dataTest$data$concensus[dataTest$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(as.numeric(final_ADOS_CoSoTot),weightedEstimate,color=recentDxJ_dxCode))+geom_point()+geom_smooth(method = "lm")+ggtitle("Test dataset")
 
 test_pheno_up <- read.csv("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/test_pheno_up.csv", row.names=1)
 dataTest$data$concensus$final_ADOS_CoSoTot = test_pheno_up[dataTest$data$concensus$sampleName, 'final_ADOS_CoSoTot']
+dataTest$data$concensus$subjectID = test_pheno_up[dataTest$data$concensus$sampleName, 'subjectId']
+
 dataTest$data$concensus$recentDxJ_dxCode = test_pheno_up[dataTest$data$concensus$sampleName, 'recentDxJ_dxCode']
 dataTest$data$concensus$recentDxJ_ageMo = test_pheno_up[dataTest$data$concensus$sampleName, 'recentDxJ_ageMo']
+dataTest$data$concensus$sampleLabel="other"
+dataTest$data$concensus$sampleLabel[dataTest$data$concensus$recentDxJ_dxCode=="TD"]="TD"
+# expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="other"]="TD"
+dataTest$data$concensus$sampleLabel[dataTest$data$concensus$recentDxJ_dxCode=="ASD"&dataTest$data$concensus$weightedEstimate>=the_median]="easy"
+dataTest$data$concensus$sampleLabel[dataTest$data$concensus$recentDxJ_dxCode=="ASD"&dataTest$data$concensus$weightedEstimate<the_median]="hard"
 
-cor(dataTest$data$concensus$weightedEstimate, dataTest$data$concensus$final_ADOS_CoSoTot, use="complete.obs")
-ggplot(dataTest$data$concensus[dataTest$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(as.numeric(final_ADOS_CoSoTot),weightedEstimate,color=recentDxJ_dxCode))+geom_point()+geom_smooth(method = "lm")+ggtitle("Eval dataset")
+write.table(dataTest$data$concensus, file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/test_consensus.csv",sep = ",")
+cor.test(dataTest$data$concensus$weightedEstimate,dataTest$data$concensus$final_ADOS_CoSoTot,use="complete.obs") 
+
+
+pdf(file=paste0(inputPath,"Suppl_ADOS_CoSoTot_vs_TestSubgroup_corr.pdf"),width = 3.5, height = 4)
+ggplot(dataTest$data$concensus[dataTest$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(as.numeric(final_ADOS_CoSoTot),weightedEstimate, fill=recentDxJ_dxCode))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title='Eval', x = "ADOS_CoSoTot", y='Composite Score')+
+  ggtitle("ADOS_CoSoTot vs Test Subgroup")+
+  theme(legend.position = "none",axis.text = element_text(color="black"))
+dev.off()
+
+pdf(file=paste0(inputPath,"Suppl_ADOS_CoSoTot_vs_TestSubgroup_box.pdf"),width = 3.5, height = 4)
+ggplot(dataTest$data$concensus[dataTest$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(sampleLabel,as.numeric(final_ADOS_CoSoTot)))+
+  geom_boxplot(outlier.shape = NA)+theme_bw()+geom_jitter(aes(fill=factor(sampleLabel)), width = 0.4,shape=21)+ggtitle("ADOS_CoSoTot vs Test Subgroup")+theme(legend.position = "none",axis.text = element_text(color="black"))+xlab("Subgroup")+ylab("Sample score") 
+dev.off()
+
+#########3
+### need add mullen test
+########3
+# cor(dataTest$data$concensus$weightedEstimate, dataTest$data$concensus$final_ADOS_CoSoTot, use="complete.obs")
+# ggplot(dataTest$data$concensus[dataTest$data$concensus$recentDxJ_dxCode %in% c("ASD","ASD Features"),],aes(as.numeric(final_ADOS_CoSoTot),weightedEstimate,fill=recentDxJ_dxCode))+
+#   geom_point()+
+#   geom_smooth(method = "lm")+
+#   labs(title='Eval', x = "ADOS_CoSoTot", y='Composite Score')+
+#   scale_fill_discrete(name='Diagnosis', labels=c('ASD'))
+
+
+
+
+```
+
+```{R}
+
 
 #TD subjects in the evaluation dataset with scores above 0.75
 print("TD subjects in the evaluation dataset with scores above 0.75")
-x=dataMain$data$concensus[dataMain$data$concensus$weightedEstimate>0.75 & dataMain$data$concensus$recentDxJ_dxCode=="TD",]
+x=dataMain$data$concensus[dataMain$data$concensus$weightedEstimate>0.7514 & dataMain$data$concensus$recentDxJ_dxCode=="TD",]
 
 print("All false positives TDs have stable DX")
 print("Age Mo of last DX for false positive TDs:")
 print(x$recentDxJ_ageMo)
 
 x=dataMain$data$concensus[dataMain$data$concensus$recentDxJ_dxCode=="TD",]
-plot(x$age,x$weightedEstimate,xlab="Age",ylab="Score",main=paste("TD subjects\npvalue:",t.test(as.numeric(x$age)~(x$weightedEstimate>0.75))$p.value))
+plot(x$recentDxJ_ageMo,x$weightedEstimate,xlab="Age",ylab="Score",main=paste("TD subjects\npvalue:",t.test(as.numeric(x$recentDxJ_ageMo)~(x$weightedEstimate))$p.value))
 
 
-plot(as.numeric(x$age),x$final_ADOS_CoSoRRTot)
+plot(as.numeric(x$recentDxJ_ageMo),x$final_ADOS_CoSoRRTot)
 
 ###is there a group of classifiers who classify the poorly classified ASD group well?
 
@@ -586,9 +948,12 @@ df=rbind(df,data.frame(class="ASD-test",score=1- altModelTest$indxASDPoor$estima
 ggplot(df,aes(df$score,color=df$class))+geom_density()+theme_bw()+xlab("Good alternative classification models\nSubjects with poor classification in the consunsus")
 rm(df,altModelLD,altModelLong,altModelMain,altModelTest)
 
+
+
+```
+```{r}
 #DE analysis
 .myDEanalysisFn=function(inputData){
-  inputData=expTest
   model=model.matrix(~0+sampleLabel,data=inputData)
   colnames(model)=c("good","poor","TD")
   fit = lmFit(inputData,design=model)
@@ -606,75 +971,262 @@ rm(df,altModelLD,altModelLong,altModelMain,altModelTest)
 
 # load("~/Documents/archive/UCSD_data/myData/classification_paper_main_ageBalanced_05162019.rda")
 load("/Volumes/Work/Vahid_work/classification_newcode_data/inputDataJabba_main.rda")
+write.table(inputExpData@featureData@data[,c("ILMN_Gene", "Entrez_Gene_ID")], "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/data_supplementary/ilmn_gene.csv")
+load('/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/data_supplementary/all_usable_data.rda')
+
 
 expMain=inputExpData[,match(dataMain$data$concensus$sampleName,colnames(inputExpData))]
 expMain$sampleLabel="other"
 expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="TD"]="TD"
-# expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="other"]="TD"
-expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="ASD"&dataMain$data$concensus$weightedEstimate>=0.75]="good"
-expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="ASD"&dataMain$data$concensus$weightedEstimate<0.75]="poor"
+expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="other"]="TD"
+expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="ASD"&dataMain$data$concensus$weightedEstimate>=the_median]="good"
+expMain$sampleLabel[dataMain$data$concensus$recentDxJ_dxCode=="ASD"&dataMain$data$concensus$weightedEstimate<the_median]="poor"
+
+expMain = expMain[row.names(expMain) %in% allProteinCodingGenes,]
+
 
 DEmain=.myDEanalysisFn(expMain)
-pdf(file=paste0(inputPath,"pval_density_main_dataset.pdf"))
+save(DEmain, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_main.rda")
+View(DEmain[['goodClassification']])
+#####################################
 
-ggplot(DEmain$pvalDist,aes(pval,color=class))+
-  # layer(geom = "area", mapping = aes(x = )),
-  #         geom_params = list(fill = "red", alpha = 0.5))+
-  geom_density()+theme_bw()+theme(axis.text = element_text(color="black"),panel.grid = element_blank())+ggtitle("Evaluation dataset")
+
+expMain_good = inputExpData[row.names(inputExpData) %in% allProteinCodingGenes,expMain$sampleLabe %in% c("good", 'TD')]
+write.table(exprs(expMain_good), file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/expMain_good.txt",sep='\t')
+output_table = DEmain[['goodClassification']][,c("geneSymbol", 'logFC',"adj.P.Val")]
+colnames(output_table) = c('gene_name','log2FoldChange','padj')
+write.table(output_table, file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_out/DE_main_good.tsv",sep='\t')
+
+
+########### step 1 ############
+de_main_good_gene = DEmain[['goodClassification']]
+de_main_good_gene = de_main_good_gene[de_main_good_gene$adj.P.Val<0.01, ]
+dim(de_main_good_gene)
+# 
+# length(intersect(de_main_good_gene$Entrez_Gene_ID, feature_selection_complete_gene))
+# length(intersect(de_main_good_gene$Entrez_Gene_ID, feature_selection_all_gene))
+
+de_main_good_gene$logp = -log(de_main_good_gene$adj.P.Val)
+de_main_good_gene = de_main_good_gene[,c("Entrez_Gene_ID", "logp")]
+write.table(de_main_good_gene, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_main_goodClassification_with_rank_001.txt", row.names = F, sep="\t")
+de_main_good_gene = de_main_good_gene[,c("Entrez_Gene_ID")]
+write.table(de_main_good_gene, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_main_goodClassification_without_rank_001.txt", row.names = F, sep="\t")
+
+########### step 2 ############
+
+de_main_good_gene = DEmain[['goodClassification']]
+de_main_good_gene_2 = de_main_good_gene[(de_main_good_gene$adj.P.Val<0.05) & (abs(de_main_good_gene$logFC)>0.13), ]
+dim(de_main_good_gene)
+
+# length(intersect(de_main_good_gene$Entrez_Gene_ID, feature_selection_complete_gene))
+# length(intersect(de_main_good_gene$Entrez_Gene_ID, feature_selection_all_gene))
+
+de_main_good_gene$logp = -log2(de_main_good_gene$adj.P.Val)
+de_main_good_gene = de_main_good_gene[,c("Entrez_Gene_ID","geneSymbol","logFC","AveExpr",'adj.P.Val')]
+write.table(de_main_good_gene, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_main_good_gene.tsv", row.names = F, sep="\t")
+de_main_good_gene = de_main_good_gene[,c("Entrez_Gene_ID")]
+write.table(de_main_good_gene, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_main_goodClassification_without_rank_005_logfc013.txt", row.names = F, sep="\t")
+############
+
+de_main_good_gene = DEmain[['goodClassification']]
+de_main_good_gene = de_main_good_gene[(de_main_good_gene$adj.P.Val<0.01) & (abs(de_main_good_gene$logFC)>0.1), ]
+dim(de_main_good_gene)
+# length(intersect(de_main_good_gene_2$Entrez_Gene_ID, de_main_good_gene_1$Entrez_Gene_ID))
+# length(intersect(de_main_good_gene$Entrez_Gene_ID, feature_selection_complete_gene))
+# length(intersect(de_main_good_gene$Entrez_Gene_ID, feature_selection_all_gene))
+
+de_main_good_gene$logp = -log2(de_main_good_gene$adj.P.Val)
+de_main_good_gene = de_main_good_gene[,c("Entrez_Gene_ID", "logp")]
+write.table(de_main_good_gene, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_main_goodClassification_with_rank_001_logfc01.txt", row.names = F, sep="\t")
+de_main_good_gene = de_main_good_gene[,c("Entrez_Gene_ID")]
+write.table(de_main_good_gene, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_main_goodClassification_without_rank_001_logfc01.txt", row.names = F, sep="\t")
+################
+
+
+de_main_poor_gene = DEmain[['poorClassification']]
+de_main_poor_gene = de_main_poor_gene[de_main_poor_gene$adj.P.Val<0.05, ]
+dim(de_main_poor_gene)
+
+length(DEmain[['goodClassification']]$adj.P.Val<0.05)
+
+inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/"
+pdf(file=paste0(inputPath,"pval_density_main_dataset.pdf"),width = 6, height = 4)
+ggplot(DEmain$pvalDist,aes(pval,color=class,fill=class))+
+  geom_density(size=1)+theme_bw()+scale_fill_manual(values=c(NA,"gray"))+scale_color_manual(values=c("red",NA))+theme(axis.text = element_text(color="black"),panel.grid = element_blank())+ggtitle("Evaluation dataset")+
+  labs(x="p-value",  y="Density")
+
 dev.off()
 rm(expMain,inputExpData)
 
 # load("~/Documents/archive/UCSD_data/myData/classification_paper_testData_05162019.rda")
 load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/out1/data.rda")
 testData = data[["testInputData"]]
+
 expTest=testData[,match(dataTest$data$concensus$sampleName,colnames(testData))]
 expTest$sampleLabel="other"
 expTest$sampleLabel[dataTest$data$concensus$recentDxJ_dxCode=="TD"]="TD"
 expTest$sampleLabel[dataTest$data$concensus$recentDxJ_dxCode=="ASD"&dataTest$data$concensus$weightedEstimate>=0.75]="good"
 expTest$sampleLabel[dataTest$data$concensus$recentDxJ_dxCode=="ASD"&dataTest$data$concensus$weightedEstimate<0.75]="poor"
 expTest$sampleLabel[expTest$sampleLabel=="other"]="TD"
-DEtest=.myDEanalysisFn(expTest)
+expTest = expTest[row.names(expTest) %in% allProteinCodingGenes,]
 
-pdf(file=paste0(inputPath,"pval_density_test_dataset.pdf"))
-ggplot(DEtest$pvalDist,aes(pval,color=class))+
+DEtest=.myDEanalysisFn(expTest)
+save(DEtest, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_test.rda")
+
+de_test_good_gene = DEtest[['goodClassification']]
+de_test_good_gene = de_test_good_gene[de_test_good_gene$adj.P.Val<0.05, ]
+dim(de_test_good_gene)
+de_test_poor_gene = DEtest[['poorClassification']]
+de_test_poor_gene = de_test_poor_gene[de_test_poor_gene$adj.P.Val<0.05, ]
+
+de_main_good_gene = DEmain[['goodClassification']]
+de_main_good_gene = de_main_good_gene[de_main_good_gene$adj.P.Val<0.05, c("Entrez_Gene_ID")]
+
+length(intersect(de_test_good_gene$Entrez_Gene_ID, de_test_poor_gene$Entrez_Gene_ID))
+length(intersect(de_test_good_gene$Entrez_Gene_ID, de_main_good_gene))
+kept = intersect(de_test_good_gene$Entrez_Gene_ID, de_main_good_gene)
+kept = kept[!(kept %in% de_test_poor_gene$Entrez_Gene_ID)]
+length(kept)
+write.table(kept, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_mainOtest_goodClassification_without_rank_005.txt", row.names = F, sep="\t")
+
+
+de_test_good_gene = de_test_good_gene[de_test_good_gene$adj.P.Val<0.01, ]
+dim(de_test_good_gene)
+de_test_poor_gene = de_test_poor_gene[de_test_poor_gene$adj.P.Val<0.01, ]
+dim(de_test_poor_gene)
+de_main_good_gene = DEmain[['goodClassification']]
+de_main_good_gene = de_main_good_gene[de_main_good_gene$adj.P.Val<0.01, c("Entrez_Gene_ID")]
+length(de_main_good_gene)
+length(intersect(de_test_good_gene$Entrez_Gene_ID, de_test_poor_gene$Entrez_Gene_ID))
+length(intersect(de_test_good_gene$Entrez_Gene_ID, de_main_good_gene))
+kept = intersect(de_test_good_gene$Entrez_Gene_ID, de_main_good_gene)
+kept = kept[!(kept %in% de_test_poor_gene$Entrez_Gene_ID)]
+length(kept)
+write.table(kept, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_mainOtest_goodClassification_without_rank_001.txt", row.names = F, sep="\t")
+#################
+pdf(file=paste0(inputPath,"pval_density_test_dataset.pdf"),width = 6, height = 4)
+ggplot(DEtest$pvalDist,aes(pval,color=class,fill=class))+
   # layer(geom = "area", mapping = aes(x = ifelse(x>-1.2 & x<1.1 , x, 0)),
   #         geom_params = list(fill = "red", alpha = 0.5))+
-  geom_density()+
-  theme_bw()+
-  theme(axis.text = element_text(color="black"),panel.grid = element_blank())+ggtitle("Test dataset")
+  geom_density(size=1)+theme_bw()+
+  scale_fill_manual(values=c(NA,"gray"))+
+  scale_color_manual(values=c("red",NA))+theme(axis.text = element_text(color="black"),panel.grid = element_blank())+ggtitle("Evaluation dataset")+labs(x="p-value",  y="Density")
+
 dev.off()
 rm(expTest,testData)
 
+#################
+expMain_Test = combine(expMain, expTest)
+DEmain_test=.myDEanalysisFn(expMain_Test)
+de_mainOtest_good_gene = DEmain_test[['goodClassification']]
+de_mainOtest_good_gene = de_mainOtest_good_gene[de_mainOtest_good_gene$adj.P.Val<0.01,]
+de_mainOtest_good_gene$adj.P.Val
+de_mainOtest_good_gene = de_mainOtest_good_gene[order(de_mainOtest_good_gene$adj.P.Val),]
+de_mainOtest_good_gene = de_mainOtest_good_gene[,c("Entrez_Gene_ID")]
+write.table(intersect(asdProband[asdProband$adj.P.Val<0.05,c("Entrez_Gene_ID")], de_mainOtest_good_gene$Entrez_Gene_ID), file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/o_asdProband.txt", row.names = F, sep="\t")
+
+
+length(de_mainOtest_good_gene)
+
+de_mainOtest_poor_gene = DEmain_test[['poorClassification']]
+de_mainOtest_poor_gene = de_mainOtest_poor_gene[de_mainOtest_poor_gene$adj.P.Val<0.01, ]
+de_mainOtest_poor_gene = de_mainOtest_poor_gene[order(de_mainOtest_poor_gene$adj.P.Val), c("Entrez_Gene_ID")]
+
+
+length(de_mainOtest_good_gene)
+write.table(de_mainOtest_good_gene, file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_mainOtest_good_poorClassification_without_rank_001.txt", row.names = F, sep="\t")
+write.table(de_mainOtest_good_gene[1:1000], file = "/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/final_list/de_mainOtest_good_poorClassification_without_rank_001_top1000.txt", row.names = F, sep="\t")
+
+
+
+gNet=.myNetGeneExtractorFn(netMProbandCombined)
+
+
+
+library(readxl)
 #checking for prenatal events
-prenatal=read.table("/Users/gazestani/Desktop/Desktop/Desktop/Desktop/prenatal_birth_history/Prenatal_birth_project_4.18.2019/prenatal_events.txt",sep="\t",header = T,stringsAsFactors = F,quote ="",comment.char = "",dec=NULL)
+# prenatal=read.table("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/data_supplementary/prenatalData_Bokan_mainConsensus_subjects.txt",sep="\t",header = T,stringsAsFactors = F,quote ="",comment.char = "",dec=NULL)
+# my_data_3 = read_excel("/Volumes/Work/Vahid_work/Vahid_classification_paper/prenatal_events_detailed from Vahid.xlsx")
+# prenatal = my_data_3
+my_data_1 <- read_excel("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/data_supplementary/prenatalData_Bokan_mainConsensus_subjects.xlsx")
+my_data_2 <- read_excel("/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/data_supplementary/prenatalData_Bokan_testConsensus_subjects.xlsx")
+prenatal = rbind(my_data_1,my_data_2)
 
 bloodId=c(as.character(dataMain$data$concensus$sampleName),as.character(dataTest$data$concensus$sampleName))
-sampleNames=c(as.character(dataMain$data$concensus$subjectId),as.character(dataTest$data$concensus$subjectId))
+sampleNames=c(as.character(dataMain$data$concensus$subjectID),as.character(dataTest$data$concensus$subjectID))
 scores=c(dataMain$data$concensus$weightedEstimate,dataTest$data$concensus$weightedEstimate)
 DX=c(dataMain$data$concensus$real,dataTest$data$concensus$real)
 df=data.frame(bloodId=bloodId,sampleNames=sampleNames,scores=scores,dx=DX,stringsAsFactors = F)
 rm(sampleNames,scores,DX)
+length(bloodId)
+length(sampleNames)
+length(scores)
+length(DX)
 
-df=merge(df,prenatal,by.x="sampleNames",by.y="SubjectId")
+df=merge(df, prenatal, by.x="sampleNames", by.y="SubjectId")
 df$category="other"
 df$category[df$dx==0]="TD"
-df$category[df$dx==1&df$scores>=0.75]="good"
-df$category[df$dx==1&df$scores<0.75]="poor"
+df$category[df$dx==1&df$scores>=the_median]="good"
+df$category[df$dx==1&df$scores<the_median]="poor"
 
+# df=my_data_3
+# df = as.data.frame(df)
+# table(df$LocAnes)
 df$Hosp_tri=gsub("-",NA,df$Hosp_tri)
+df$Hosp_tri = gsub("NULL",NA,df$Hosp_tri)
 df$Hosp_med=gsub("-",NA,df$Hosp_med)
+df$Hosp_med = gsub("NULL",NA,df$Hosp_med)
 df$Surgery_tri=gsub("-",NA,df$Surgery_tri)
+df$Surgery_tri = gsub("NULL",NA,df$Surgery_tri)
+
 df$Surgery_med[which(df$Surgery_med=="C-section")]=NA
+df$Surgery_med[which(df$Surgery_med=="c-section, vicadin (2 weeks)")]=NA
+df$Surgery_med=gsub("-",NA,df$Surgery_med)
+df$Surgery_med = gsub("NULL",NA,df$Surgery_med)
+
 df$WtLoss_tri=gsub("-",NA,df$WtLoss_tri)
-df$WtLoss_tri[!is.na(df$WtLoss_tri)]=1
+df$WtLoss_tri = gsub("NULL",NA,df$WtLoss_tri)
+df$WtLoss_med=gsub("-",NA,df$WtLoss_med)
+df$WtLoss_med=gsub("none",NA,df$WtLoss_med)
+df$WtLoss_med=gsub("None",NA,df$WtLoss_med)
+df$WtLoss_med = gsub("NULL",NA,df$WtLoss_med)
 df$GenAnes=gsub("-",NA,df$GenAnes)
 df$GenAnes=gsub("N",NA,df$GenAnes)
+df$GenAnes = gsub("NULL",NA,df$GenAnes)
+df$ConfBed_med=gsub("-",NA,df$ConfBed_med)
 df$ConfBed_med=gsub("none",NA,df$ConfBed_med)
 df$ConfBed_med=gsub("none, bedrest",NA,df$ConfBed_med)
+df$ConfBed_med = gsub("NULL",NA,df$ConfBed_med)
 df$ConfBed_tri=gsub("-",NA,df$ConfBed_tri)
+df$ConfBed_tri = gsub("NULL",NA,df$ConfBed_tri)
 df$LocAnes=gsub("N",NA,df$LocAnes)
 df$LocAnes=gsub("-",NA,df$LocAnes)
+df$LocAnes = gsub("NULL",NA,df$LocAnes)
+df$MornSick_med = gsub("none",NA,df$MornSick_med)
+df$MornSick_med = gsub("None",NA,df$MornSick_med)
+df$MornSick_med = gsub("n/a",NA,df$MornSick_med)
+df$MornSick_med = gsub("N/A",NA,df$MornSick_med)
+df$MornSick_med = gsub("no",NA,df$MornSick_med)
+df$MornSick_med = gsub("-",NA,df$MornSick_med)
+df$MornSick_med = gsub("N",NA,df$MornSick_med)
+df$MornSick_med = gsub("NULL",NA,df$MornSick_med)
+df$MornSick_med = gsub("-",NA,df$MornSick_med)
 
+df$MornSick_tri = gsub("-",NA,df$MornSick_tri)
+df$MornSick_tri = gsub("NULL",NA,df$MornSick_tri)
+
+df$Nausea_tri= gsub("-",NA,df$Nausea_tri)
+df$Nausea_tri = gsub("NULL",NA,df$Nausea_tri)
+df$Nausea_med= gsub("-",NA,df$Nausea_med)
+df$Nausea_med = gsub("NULL",NA,df$Nausea_med)
+df$Swell_tri= gsub("-",NA,df$Swell_tri)
+df$Swell_tri = gsub("NULL",NA,df$Swell_tri)
+
+df = df[,c('sampleNames','category','Hosp_tri', 'Surgery_tri', 'ConfBed_tri', 'GenAnes', 'Nausea_tri','MornSick_tri','Swell_tri')]
+summary_ = c()
+for(i in 1:dim(df)){
+  summary_ = c(summary_, !is.na(df[,]))
+}
 table(df$LocAnes,df$category)
 
 concensus=rep(0,nrow(df))
@@ -686,7 +1238,7 @@ concensus[!is.na(df$GenAnes)]=1
 concensus[!is.na(df$ConfBed_med)]=1
 concensus[!is.na(df$ConfBed_tri)]=1
 #concensus[!is.na(df$LocAnes)]=1
-
+concensus
 concensus2=rep(0,nrow(df))
 concensus2[!is.na(df$Nausea_tri)]=1
 concensus2[!is.na(df$Nausea_med)]=1
@@ -694,21 +1246,83 @@ concensus2[!is.na(df$MornSick_tri)]=1
 concensus2[!is.na(df$MornSick_med)]=1
 concensus2[!is.na(df$Swell_tri)]=1
 
+a_table = data.frame(col=c('easy-to-classify','hard-to-classify','TD'))#c('good','poor','TD'))
+a_table$concensus = table(df$category)
+for(term in c('Hosp_med', 'Hosp_tri', 'Surgery_tri','Surgery_med', 'ConfBed_med', 'ConfBed_tri', 'GenAnes',  'LocAnes', 'WtLoss_tri', 'WtLoss_med',
+                'Nausea_tri','Nausea_med','MornSick_tri','MornSick_med','Swell_tri')){
+  print(term)
+  print(table(df[,term],df$category))
+  temp_table = table(df[,term],df$category)
+  a_vex=c()
+  for(dx in c('easy-to-classify','hard-to-classify','TD')){
+    temp_col = temp_table[,dx]
+    if (dim(temp_table)[1]==1){
+      a_vex = c(a_vex,temp_col)
+    }
+  else{
+    temp_col = temp_col[names(temp_col)!='NULL']
+    a_vex = c(a_vex, sum(temp_col))
+    }
+}
+  print(a_vex)
+  a_table[,term] = a_vex
+}
+
+for(term in c('Hosp_med', 'Hosp_tri', 'Surgery_tri','Surgery_med', 'ConfBed_med', 'ConfBed_tri', 'GenAnes',  'LocAnes', 'WtLoss_tri', 'WtLoss_med',
+                'Nausea_tri','Nausea_med','MornSick_tri','MornSick_med','Swell_tri')){
+  print(term)
+  print(table(df[,term],df$category))
+  temp_table = table(df[,term],df$category)
+  a_vex=c()
+  for(dx in c('easy-to-classify','hard-to-classify','TD')){
+    temp_col = temp_table[,dx]
+    if (dim(temp_table)[1]==1){
+      a_vex = c(a_vex,temp_col)
+    }
+  else{
+    temp_col = temp_col[names(temp_col)!='NULL']
+    a_vex = c(a_vex, sum(temp_col))
+    }
+}
+  print(a_vex)
+  a_table[,term] = a_vex
+}
+
+write.xlsx(df, file='/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/data_supplementary/mergedPrenatal.txt', sheetName = "Sheet1", 
+  col.names = TRUE, row.names = TRUE, append = FALSE)
+
+write.xlsx(t(a_table), file='/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/pretal_summary.xlsx', sheetName = "Sheet1", 
+  col.names = TRUE, row.names = TRUE, append = FALSE)
+
+fisher.test(rbind(c(37,28),c(6,13)))
+fisher.test(rbind(c(14,13),c(15,37)))
+fisher.test(rbind(c(29,41),c(15,29)))
+fisher.test(rbind(c(29,41),c(6,13)))
+
+fisher.test(rbind(c(29,41),c(6,13)))
+
+# now
 
 
 
+fisher.test(rbind(c(42,27),c(15,28)))
+
+
+
+read.xlsx(df, file='/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/data_supplementary/mergedPrenatal.txt', sheetName = "Sheet1", 
+  col.names = TRUE, row.names = TRUE, append = FALSE)
 
 
 table(xMain$Narcotics_med[xCategory!="TD"],xCategory[xCategory!="TD"],useNA='ifany')
 
 table(concensus,df$category,useNA='ifany')
-fisher.test(rbind(c(29,41),c(6,13)))
-fisher.test(rbind(c(17,41),c(14,13)))
-
-fisher.test(rbind(c(29,17),c(6,14)))
-
 
 ######################################
+fisher.test(rbind(c(15,28),c(48,33)))
+fisher.test(rbind(c(25,28),c(82,33)))
+fisher.test(rbind(c(25,15),c(82,48)))
+
+
 csbs=read.table("~/Desktop/CSBS.txt",sep="\t",header=T,stringsAsFactors = F,na.strings = "NULL")
 csbs=csbs[!is.na(csbs$CSBS_subjectid),]
 csbs$finalscore=csbs$CSBS_sub1_social_3
@@ -774,5 +1388,55 @@ summary(lm(estimated~final_ADOS_CoSoTot,data=data5))
 
 plot(as.factor(data4$final_ADOS_CoSoTot),as.factor(data4$estimated>1600))
 
+```
+
+```{r}
+# Generating figure one
+args="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/"
+require(plyr)
+path=gsub("\"", "", args[1])
+dataList=read.table(paste0(path,"dataList.txt"))
+path=unlist(strsplit(args,"/"))
+path=path[-length(path)]
+path=paste(path,collapse = "/")
+if(length(path)>0){
+path=paste0(path,"/")
+} else {
+    path=""
+}
+PRres=""
+# line_count=0
+for(i in 1:nrow(dataList)){
+  if(file.exists(paste0(path,dataList$V1[i],'results.rda'))){
+    #load(paste0(path,dataList$V1[i],'results.rda'))
+    load(paste0(path,dataList$V1[i],'results.rda'))
+    if(all(length(PRres)==1&PRres=="")){
+      ROCres=data.frame(name=row.names(result[["ROCresults"]]),result[["ROCresults"]])
+
+    } else {
+      ROCres=rbind.fill(ROCres,data.frame(name=row.names(result[["ROCresults"]]),result[["ROCresults"]]))
+    }
+    # line_count=line_count+1
+  }
+}
+
+
+
+if(sum(duplicated(PRres$name))>0){
+  tst=as.character(PRres$name[1])
+  tst=unlist(strsplit(tst,"_"))
+  options(warn = 0)
+  if(is.na(as.numeric(tst[2]))){
+    ROCres$name=.myIdCorrectorFn(ROCres$name)
+  }
+  options(warn = 1)
+}
+
+row.names(ROCres)=ROCres$name
+ROCres=ROCres[,-which(colnames(ROCres)=="name")]
+
+
+# PRres=.myMatrixArranger(PRres)
+write.table(ROCres, file="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/5_interation_data.csv", sep=",")
 ```
 

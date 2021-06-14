@@ -411,7 +411,7 @@
   
 }
 
-.myPLSRfilterationFn=function(inputExpSet,labels,testInputData,testLabels,outputsize=NULL){
+.myPLSRfilterationFn=function(inputExpSet,labels,testInputData,testLabels,outputsize=NULL,tmpMethod=tmpMethod){
   require("pls",quietly=T)
   require(parallel,quietly=T)
   if(is.null(outputsize)){
@@ -439,6 +439,20 @@
   ncomp=max(ncomp,3)
   #print(paste0("PLSR number of components by CV:", ncomp))
   res <- plsr(labels ~ covariates, ncomp = ncomp, data = dataPrepared, validation = "CV",scale=TRUE)
+  aweights = unclass(res[["loading.weights"]])
+  aweights = abs(aweights)
+  aweights = sweep(aweights, 2, colSums(aweights), "/")
+  aweights = as.matrix(aweights) %*% as.matrix(explvar(res))
+  akk =  aweights[order(aweights, decreasing=TRUE),, drop=FALSE]
+  weightExplained = cumsum(akk)
+  the_last = min(which(weightExplained>=weightExplained[length(weightExplained)]*0.66))
+  ### super dangerous test
+  the_last = max(the_last, 70)
+  the_last = min(the_last, length(rownames(akk)))
+  write(rownames(akk)[1:the_last], paste0("/data/bokan/6_sample_score/final_testDataset_test_main_added/feature_test/", tmpMethod, "_plsr.txt"))
+  # write(rownames(akk)[1:the_last], paste0("/Volumes/Work/Vahid_work/classification_newcode_data/test_feature/",tmpMethod,"_plsr.txt"))
+
+  
   testInputData=predict(res,t(.matrixExtraction(testInputData)))
   if(length(dim(testInputData))==3){
     testInputData=testInputData[1:dim(testInputData)[1],1,1:dim(testInputData)[3]]
@@ -452,10 +466,14 @@
   return(list(results=results,details=res,testInputData=testInputData,testLabels=testLabels))
 }
 
-.myPCRfilterationFn=function(inputExpSet,labels,testInputData,testLabels,outputsize=NULL){
-  
+.myPCRfilterationFn=function(inputExpSet,labels,testInputData,testLabels,outputsize=NULL,tmpMethod=tmpMethod){
+  # inputExpSet=resultsMiddle[[1]]$features
+  # labels=resultsMiddle[[1]]$labels
+  # tmpMethod=resultsMiddle[[1]]$method
+  # testInputData=resultsMiddle[[1]]$testInputData
+  # testLabels=resultsMiddle[[1]]$testLabels
   require("pls",quietly=T)
-  
+  outputsize=0.9
   if(is.null(outputsize)){
     outputsize=0.9
   }
@@ -466,12 +484,14 @@
   }
   pcaObj=prcomp(t(.matrixExtraction(inputExpSet)),scale. = T)
   varExplained=cumsum(pcaObj$sdev^2 / sum(pcaObj$sdev^2))
+  # varExplained
   ncomp=min(which(varExplained>=outputsize))
-  
+  # ncomp
   dataPrepared=list(as.numeric(as.factor(labels)),t(.matrixExtraction(inputExpSet)))
   class(dataPrepared)="data.frame"
   names(dataPrepared)=c("labels","covariates")
   row.names(dataPrepared)=colnames(inputExpSet)
+  # View(dataPrepared)
   #print(paste0("starting with ",max(ncomp,5)," components"))
   
   
@@ -480,8 +500,25 @@
   res <- pcr(labels ~ covariates, ncomp = min(max(ncomp,5),dim(dataPrepared$covariates)[2]), data = dataPrepared, validation = "CV",segments=5,scale=TRUE)
   ncomp=selectNcomp(res, method = "randomization", plot = F)
   ncomp=max(ncomp,3)
+  # ncomp
   #print(paste0("PCR number of components by CV:", ncomp))
+  
   res <- pcr(labels ~ covariates, ncomp = ncomp, data = dataPrepared, validation = "CV",scale=TRUE)
+  aweights = unclass(res[["loadings"]])
+  aweights = abs(aweights)
+  aweights = sweep(aweights, 2, colSums(aweights), "/")
+  aweights = as.matrix(aweights) %*% as.matrix(explvar(res))
+  akk =  aweights[order(aweights, decreasing=TRUE),, drop=FALSE]
+  weightExplained = cumsum(akk)
+  # plot(weightExplained)
+  the_last = min(which(weightExplained>=weightExplained[length(weightExplained)]*0.66))
+  ### super dangerous test
+  the_last = max(the_last, 70)
+  the_last = min(the_last, length(rownames(akk)))
+  write(rownames(akk)[1:the_last], paste0("/data/bokan/6_sample_score/final_testDataset_test_main_added/feature_test/", tmpMethod, "_pcr.txt"))
+  # write(rownames(akk)[1:the_last], paste0("/Volumes/Work/Vahid_work/classification_newcode_data/test_feature/",tmpMethod,"_pcr.txt"))
+  
+  
   testInputData=predict(res,newdata = t(.matrixExtraction(testInputData)))
   if(length(dim(testInputData))==3){
     testInputData=testInputData[1:dim(testInputData)[1],1,1:dim(testInputData)[3]]
@@ -497,10 +534,14 @@
   return(list(results=results,details=res,testLabels=testLabels,testInputData=testInputData))
 }
 
-.myCPPLSfilterationFn=function(inputExpSet,labels,testInputData,testLabels,outputsize=NULL){
+.myCPPLSfilterationFn=function(inputExpSet,labels,testInputData,testLabels,outputsize=NULL,tmpMethod=tmpMethod){
   require("pls",quietly=T)
   require(parallel,quietly=T)
-  
+  # inputExpSet=resultsMiddle[[1]]$features
+  # labels=resultsMiddle[[1]]$labels
+  # # tmpMethod=inputData[[i]]$method
+  # testInputData=resultsMiddle[[1]]$testInputData
+  # testLabels=resultsMiddle[[1]]$testLabels
   if(is.null(outputsize)){
     outputsize=0.9
   }
@@ -526,6 +567,20 @@
   ncomp=max(ncomp,3)
   #print(paste0("CPPLS number of components by CV:", ncomp))
   res <- cppls(labels ~ covariates, ncomp = ncomp, data = dataPrepared, validation = "CV",scale=TRUE)
+  aweights = unclass(res[["loading.weights"]])
+  aweights = abs(aweights)
+  aweights = sweep(aweights, 2, colSums(aweights), "/")
+  aweights = as.matrix(aweights) %*% as.matrix(explvar(res))
+  akk =  aweights[order(aweights, decreasing=TRUE),, drop=FALSE]
+  weightExplained = cumsum(akk)
+  the_last = min(which(weightExplained>=weightExplained[length(weightExplained)]*0.66))
+  ### super dangerous test
+  the_last = max(the_last, 300)
+  the_last = min(the_last, length(rownames(akk)))
+  write(rownames(akk)[1:the_last], paste0("/data/bokan/6_sample_score/final_testDataset_test_main_added/feature_test/",tmpMethod,"_cppls.txt"))
+  # write(rownames(akk)[1:the_last], paste0("/Volumes/Work/Vahid_work/classification_newcode_data/test_feature/",tmpMethod,"_cppls.txt"))
+  
+  
   testInputData=predict(res,newdata = t(.matrixExtraction(testInputData)))
   if(length(dim(testInputData))==3){
     testInputData=testInputData[1:dim(testInputData)[1],1,1:dim(testInputData)[3]]
@@ -801,17 +856,19 @@
   return(rf_search$optVariables)
 }
 
-.myWGCNAfilterationFn=function(inputExpSet,labels,testInputData,testLabels){
+.myWGCNAfilterationFn=function(inputExpSet,labels,testInputData,testLabels,tmpMethod=tmpMethod){
   pData(inputExpSet)=cbind(pData(inputExpSet),IdsAdded=colnames(inputExpSet),labelsAdded=labels)
-  res=.myWGCNAfn(inputExpSet,colIds="IdsAdded",diagnosisColName="labelsAdded",testInputData=testInputData,output.directory=NULL,softPowerValue=NULL,saveModuleGeneList=F)
-  return(res)
+  res=.myWGCNAfn(inputExpSet,colIds="IdsAdded",diagnosisColName="labelsAdded",testInputData=testInputData,output.directory='/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/6_sample scores/feature_test/',softPowerValue=NULL,saveModuleGeneList=T,tmpMethod=tmpMethod)
+  # res=.myWGCNAfn(inputExpSet,colIds="IdsAdded",diagnosisColName="labelsAdded",testInputData=testInputData,output.directory='/data/bokan/6_sample_score/feature_test/',softPowerValue=NULL,saveModuleGeneList=T,tmpMethod=tmpMethod)
+  
+    return(res)
 }
 
 .myNullFn=function(inputExpSet,labels){
   return(inputExpSet)
 }
 
-.myGeneFilteration=function(inputExpSet,labels,testInputData,testLabels,expClassName="proband",method="cov",outputsize=NULL){
+.myGeneFilteration=function(inputExpSet,labels,testInputData,testLabels,expClassName="proband",method="cov",outputsize=NULL,tmpMethod=''){
   #available methods: cov, var, cor, WGCNA, grn, grn1, grn2, grn3, zscore, SIS, lm, selectV, PLSR, CPPLS, PCR, cvplogistic, cvplogisticFast, svm, varImportance, Safs, DE
   switch(method,
          no=.myNullFn(inputExpSet,labels),
@@ -825,9 +882,9 @@
          zscore=.myZscoreFilterationFn(inputExpSet = inputExpSet,labels=labels,outputsize = outputsize),
          SIS=.mySISFilterationFn(inputExpSet = inputExpSet,labels = labels),
          selectV=.mySelectVFiltrationFn(inputExpSet = inputExpSet,labels = labels),
-         PLSR=.myPLSRfilterationFn(inputExpSet = inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels),
-         CPPLS=.myCPPLSfilterationFn(inputExpSet = inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels),
-         PCR=.myPCRfilterationFn(inputExpSet = inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels),
+         PLSR=.myPLSRfilterationFn(inputExpSet = inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels,tmpMethod=tmpMethod),
+         CPPLS=.myCPPLSfilterationFn(inputExpSet = inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels,tmpMethod=tmpMethod),
+         PCR=.myPCRfilterationFn(inputExpSet = inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels,tmpMethod=tmpMethod),
          #cvplogistic=.myCvplogisticFilterationFn(inputExpSet = inputExpSet,labels = labels),
          #cvplogisticFast=.myCvplogisticFastFilterationFn(inputExpSet = inputExpSet,labels = labels),
          svm=.mySVMfilterationFn(inputExpSet = inputExpSet,labels = labels),
@@ -837,7 +894,7 @@
          lm=.myLmFilterationFn(inputExpSet=inputExpSet,labels = labels,outputsize = outputsize),
          varImportance=.myVarImportanceFn(inputExpSet=inputExpSet,labels = labels,testLabels = testLabels,testInputData = testInputData),
          Safs=.mySafsFilterationFn(inputExpSet=inputExpSet,labels = labels),
-         WGCNA=.myWGCNAfilterationFn(inputExpSet=inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels),
+         WGCNA=.myWGCNAfilterationFn(inputExpSet=inputExpSet,labels = labels,testInputData = testInputData,testLabels = testLabels,tmpMethod=tmpMethod),
          DE=.myDEanalysisFn(inputExpSet=inputExpSet,labels = labels),
          GSEA=.myGSEAfilterationFn(inputExpSet=inputExpSet,labels = labels))
 }
@@ -854,8 +911,9 @@
   return(dataN)
 }
 
-.myWGCNAfn=function(tmpExpSet,colIds="Ids",diagnosisColName="diagnosis_binary",testInputData=NULL,otherCovariates=NULL,output.directory="resWGCNA/",softPowerValue=NULL,saveModuleGeneList=T,mergeModules=T){
+.myWGCNAfn=function(tmpExpSet,colIds="Ids",diagnosisColName="diagnosis_binary",testInputData=NULL,otherCovariates=NULL,output.directory="resWGCNA/",softPowerValue=NULL,saveModuleGeneList=T,mergeModules=T, tmpMethod=tmpMethod){
   # load libraries
+  print(tmpMethod)
   require(WGCNA,quietly=T)
   require(flashClust,quietly=T)
   
@@ -887,11 +945,11 @@
   sampleTree2 = flashClust(dist(datExpr), method = "average")
   traitColors = numbers2colors(datTraits, signed = FALSE);
   
-  if(!is.null(output.directory)){
-    pdf(file=paste0(output.directory,"samples dendrogram.pdf"))
-    plotDendroAndColors(sampleTree2, traitColors, groupLabels = names(datTraits), main = "Sample dendrogram and trait heatmap")
-    graphics.off()
-  }
+  # if(!is.null(output.directory)){
+  #   pdf(file=paste0(output.directory,"samples dendrogram.pdf"))
+  #   plotDendroAndColors(sampleTree2, traitColors, groupLabels = names(datTraits), main = "Sample dendrogram and trait heatmap")
+  #   graphics.off()
+  # }
   
   # calculate the softpower threshold
   networkType="signed" #"signed" "signed hybrid"
@@ -903,17 +961,17 @@
     #par(mfrow = c(1,2)); 
     cex1 = 0.9
     
-    if(!is.null(output.directory)){
-      pdf(file=paste0(output.directory,"soft threshold power left.pdf"))
-      plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2], xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n", main = paste("Scale independence"));
-      text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2], labels=powers,cex=cex1,col="red");
-      abline(h=0.90,col="red");
-      graphics.off()
-      pdf(file=paste0(output.directory,"soft threshold power right.pdf"))
-      plot(sft$fitIndices[,1], sft$fitIndices[,5], xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n", main = paste("Mean connectivity"))
-      text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
-      graphics.off()
-    }
+    # if(!is.null(output.directory)){
+    #   pdf(file=paste0(output.directory,"soft threshold power left.pdf"))
+    #   plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2], xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n", main = paste("Scale independence"));
+    #   text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2], labels=powers,cex=cex1,col="red");
+    #   abline(h=0.90,col="red");
+    #   graphics.off()
+    #   pdf(file=paste0(output.directory,"soft threshold power right.pdf"))
+    #   plot(sft$fitIndices[,1], sft$fitIndices[,5], xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n", main = paste("Mean connectivity"))
+    #   text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+    #   graphics.off()
+    # }
   }
   #print(paste0("picked power: ",sft$powerEstimate))
   
@@ -929,11 +987,11 @@
   dynamicColors = labels2colors(dynamicMods)
   table(dynamicColors)
   #sizeGrWindow(8,6)
-  if(!is.null(output.directory)){
-    pdf(file=paste0(output.directory,"Gene dendrogram module colors.pdf"))
-    plotDendroAndColors(geneTree, dynamicColors, "Dynamic Tree Cut", dendroLabels = FALSE, hang = 0.03,addGuide = TRUE, guideHang = 0.05, main = "Gene dendrogram and module colors")
-    graphics.off()
-  }
+  # if(!is.null(output.directory)){
+  #   pdf(file=paste0(output.directory,"Gene dendrogram module colors.pdf"))
+  #   plotDendroAndColors(geneTree, dynamicColors, "Dynamic Tree Cut", dendroLabels = FALSE, hang = 0.03,addGuide = TRUE, guideHang = 0.05, main = "Gene dendrogram and module colors")
+  #   graphics.off()
+  # }
   
   
   # module eigengenes calculation
@@ -945,12 +1003,12 @@
   METree = flashClust(as.dist(MEDiss), method = "average");
   #sizeGrWindow(7, 6)
   MEDissThres = 0.2
-  if(!is.null(output.directory)){
-    pdf(file=paste0(output.directory,"Module clustering.pdf"))
-    plot(METree, main = "Clustering of module eigengenes", xlab = "", sub = "")
-    abline(h=MEDissThres, col = "red")
-    graphics.off()
-  }
+  # if(!is.null(output.directory)){
+  #   pdf(file=paste0(output.directory,"Module clustering.pdf"))
+  #   plot(METree, main = "Clustering of module eigengenes", xlab = "", sub = "")
+  #   abline(h=MEDissThres, col = "red")
+  #   graphics.off()
+  # }
   
   
   # merging modules
@@ -958,11 +1016,11 @@
   mergedColors = merge$colors;
   mergedMEs = merge$newMEs;
   #sizeGrWindow(12, 9)
-  if(!is.null(output.directory)){
-    pdf(file=paste0(output.directory,"Gene dendrogram merged module colors.pdf"))
-    plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors), c("Dynamic Tree Cut", "Merged dynamic"), dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
-    graphics.off()
-  }
+  # if(!is.null(output.directory)){
+  #   pdf(file=paste0(output.directory,"Gene dendrogram merged module colors.pdf"))
+  #   plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors), c("Dynamic Tree Cut", "Merged dynamic"), dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05)
+  #   graphics.off()
+  # }
   moduleColors = dynamicColors
   moduleColorsMerged = mergedColors
   colorOrder = c("grey", standardColors(50));
@@ -993,14 +1051,15 @@
   moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
   #sizeGrWindow(8,10)
   textMatrix = paste(signif(moduleTraitCor, 2), "\n(", signif(moduleTraitPvalue, 1), ")", sep = "");
+  # print(textMatrix)
   dim(textMatrix) = dim(moduleTraitCor)
   #par(mar = c(6, 12, 3, 6));
-  if(!is.null(output.directory)){
-    pdf(file=paste0(output.directory,"module traits correlation.pdf"), 6,18)
-    labeledHeatmap(Matrix = moduleTraitCor, cex.lab.y = 0.5, xLabels = names(datTraits), yLabels = names(MEs), ySymbols = names(MEs), colorLabels = FALSE, colors = greenWhiteRed(50), textMatrix = textMatrix, setStdMargins = FALSE, cex.text = 0.5, cex.lab=0.6, zlim = c(-1,1), main = paste("Module-trait relationships"));
-    graphics.off()
-  }
-  
+  # if(!is.null(output.directory)){
+  #   pdf(file=paste0(output.directory,"module traits correlation.pdf"), 6,18)
+  #   labeledHeatmap(Matrix = moduleTraitCor, cex.lab.y = 0.5, xLabels = names(datTraits), yLabels = names(MEs), ySymbols = names(MEs), colorLabels = FALSE, colors = greenWhiteRed(50), textMatrix = textMatrix, setStdMargins = FALSE, cex.text = 0.5, cex.lab=0.6, zlim = c(-1,1), main = paste("Module-trait relationships"));
+  #   graphics.off()
+  # }
+  # 
   # save module gene lists
   if(mergeModules){
     modColors=unique(unlist(mergedColors, use.name=F));
@@ -1012,16 +1071,20 @@
   
   colnames(geneColors)[1]="geneID"
   
+  
   if(!is.null(output.directory)){
     if(saveModuleGeneList){
       for (i in 1:length(modColors)){
+        
         fname2write=sprintf("M_%s.txt", modColors[i])
         tmp=subset(geneColors, geneColors[,2]==modColors[i])
         module2write=tmp$geneID
-        write(module2write,file=paste0(output.directory,fname2write))
+        print(paste0(output.directory,tmpMethod,fname2write))
+        write(module2write,file=paste0(output.directory,tmpMethod,'_wgcna_', fname2write))
       }
     }
   }
+  print(paste0(output.directory,tmpMethod,fname2write))
   
   metaData=cbind(datTraits, MEs)
   if(is.null(testInputData)){

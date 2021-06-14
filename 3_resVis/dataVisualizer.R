@@ -29,6 +29,7 @@ rm(list=ls())
 #path="~/OneDrive - UC San Diego/vahid_mac/Documents/data/classificationPaper/newData/server_results/independent_dataSets/WG6/independentSetCorrect_complete/"
 #path="~/OneDrive - UC San Diego/vahid_mac/Documents/data/classificationPaper/newData/WG6_scaled/WG6Scale/newWG6testScale/"
 #path="~/OneDrive - UC San Diego/vahid_mac/Documents/data/classificationPaper/newData/WG6_kernel/WG6Kernel/newWG6test/"
+path = "/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/"
 load(paste0(path,"ResultsArranged.rda"))
 
 

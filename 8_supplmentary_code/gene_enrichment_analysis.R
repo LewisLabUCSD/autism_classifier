@@ -1,14 +1,21 @@
 #get the gene information
+
+# LD
+ld_name = rownames(data[["testInputData"]]@phenoData@data)[data[["testInputData"]]@phenoData@data[["diagnosis_binary"]]=='LD']
+weightedE_table=dataLD[["data"]][["concensus"]]
+weightedE_table[weightedE_table$sampleName %in% ld_name,]
+hist(weightedE_table[weightedE_table$sampleName %in% ld_name,]$weightedEstimate)
 args = commandArgs(trailingOnly=TRUE)
 
 rm(list=ls())
 setwd("/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/6_sample scores/")
 args="/Volumes/Work/Vahid_work/classification_bokan/new_runner/microarray_test_data/"
 
-# Making test_data
-#load("/Volumes/Work/Vahid_work/classification/classification/HT_as_test_v2/data/deconvoluted_genes/testDataset_HT12/testDataset_HT12/out1/data.rda")
+# Making test + main
 {
-load("/Volumes/Work/Vahid_work/classification_newcode_data/HT_as_testv2_decon_genes_testDataset_HT12_out1_data.rda")
+load('/Volumes/Work/Vahid_work/classification_newcode_data/inputDataJabba_main.rda')
+  
+load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/out1/data.rda")
 # test_set=list()
 testInputExpData=data[["testInputData"]]
 testLabels=data[["testLabels"]]
@@ -16,49 +23,118 @@ testLabels=replace(testLabels, testLabels=='proband','ASD')
 middleFns=middleFns
 posteriorFns=posteriorFns
 classificationMethodsList=classificationMethodsList
-
-###
-load('/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_170.rda')
-labels=as.vector(inputExpData@phenoData@data[["diagnosis_binary"]])
-inputExpData=inputExpData
+labels=as.vector(data[["features"]]@phenoData@data[["diagnosis_binary"]])
+inputExpData=data[["features"]]
 expClassName='ASD'
 initializerFns=initializerFns
 
+annotation <- fData(testInputExpData)
+metaData <- data.frame(labelDescription=colnames(annotation)) 
+probeinfo <- new("AnnotatedDataFrame", data=data.frame(annotation), varMetadata=metaData)
+phenoData_ <- rbind(pData(testInputExpData), pData(inputExpData))
+phenoData_ <- new("AnnotatedDataFrame", data=data.frame(phenoData_), varMetadata=data.frame(labelDescription=colnames(phenoData_)) )
+expMat <- cbind(exprs(testInputExpData), exprs(inputExpData))
+colnames(expMat)=rownames(phenoData_)
+testInputExpData=new("ExpressionSet", exprs=expMat, featureData = probeinfo, phenoData=phenoData_)
+testLabels = c(testLabels, labels)
+
 save(inputExpData,labels,testInputExpData,testLabels,middleFns,initializerFns,posteriorFns,classificationMethodsList,expClassName,
-         file="/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_170_with_65_feature_only.rda")
-### do the initialization for main+test
-setwd('/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/2_mainCode/')
-source('pipelines.R')
-require(Biobase,quietly = T)
-
-load("/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_170_with_65_feature_only.rda")
-output.directory='/Volumes/Work/Vahid_work/classification_newcode_data/test_runner/'
-if(!file.exists(output.directory)){
-  dir.create(output.directory)
-} else {
-  unlink(output.directory, recursive = T, force = T)
-  dir.create(output.directory)
-}
-
+     file="/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_main_with_240_tests.rda")
 
 trainingInput=inputExpData
 trainingLabels=labels
 testInput=testInputExpData
+source('pipelines.R')
+
 results=.myInitializer(trainingInput,labels=trainingLabels,testInputData=testInput,testLabels=testLabels,method=initializerFns,prevMethod="")
 
 counter=1
+output.directory="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_test_main_added/"
 outputfilesList=""
 for(j in 1:length(results)){
   dir.create(paste0(output.directory,"out",counter))
   data=results[[j]]
   save(data,middleFns,posteriorFns,classificationMethodsList,expClassName,file=paste0(output.directory,"out",counter,"/data.rda"))
   outputfilesList=c(outputfilesList,paste0(output.directory,"out",counter,"/"))
-  
   counter=counter+1
 }
 outputfilesList=outputfilesList[-1]
 write.table(outputfilesList,file=paste0(output.directory,"dataList.txt"),row.names = F,col.names = F)
 }
+
+
+# Making ASD+TD+LD 
+load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/out1/data.rda")
+
+# test_set=list()
+testInputExpData=data[["testInputData"]]
+testLabels=data[["testLabels"]]
+middleFns=middleFns
+posteriorFns=posteriorFns
+classificationMethodsList=classificationMethodsList
+# load('/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/out1/data.rda')
+load("/Volumes/Work/Vahid_work/classification_newcode_data/inputDataJabba_main.rda")
+
+testInputExpData_asd=data[["testInputData"]][, which(data[["testLabels"]]=='proband')]
+
+labels=replace(labels, labels=='proband','ASD')
+
+testLabels=c(testLabels, data[["testLabels"]][which(data[["testLabels"]]=='proband')])
+testLabels=replace(testLabels, testLabels=='proband','ASD')
+
+expClassName='ASD'
+initializerFns=initializerFns
+
+
+annotation <- fData(testInputExpData)
+metaData <- data.frame(labelDescription=colnames(annotation)) 
+probeinfo <- new("AnnotatedDataFrame", data=data.frame(annotation), varMetadata=metaData)
+phenoData_ <- rbind(pData(testInputExpData), pData(testInputExpData_asd))
+phenoData_ <- new("AnnotatedDataFrame", data=data.frame(phenoData_), varMetadata=data.frame(labelDescription=colnames(phenoData_)) )
+expMat <- cbind(exprs(testInputExpData), exprs(testInputExpData_asd))
+colnames(expMat) = rownames(phenoData_)
+testInputExpData=new("ExpressionSet", exprs=expMat, featureData = probeinfo, phenoData=phenoData_)
+
+
+save(inputExpData,labels,testInputExpData,testLabels,middleFns,initializerFns,posteriorFns,classificationMethodsList,expClassName,
+     file="/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_main_with_ASD_and_LD.rda")
+
+
+# Making ASD+LD 
+rm(list=ls())
+load("/Volumes/Work/Vahid_work/classification_newcode_data/inputDataJabba_main.rda")
+rm(classificationMethodsList, posteriorFns, middleFns, expClassName, runReal, npermTest, nfold, ncores)
+labels=replace(labels, labels=='proband','ASD')
+
+load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/out1/data.rda")
+
+# test_set=list()
+testInputExpData=data[["testInputData"]][, which(data[["testLabels"]]=='proband')]
+testLabels=data[["testLabels"]][which(data[["testLabels"]]=='proband')]
+testLabels=replace(testLabels, testLabels=='proband','ASD')
+
+# load('/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/out1/data.rda')
+load("/Volumes/Work/Vahid_work/classification_newcode_data/data_LD.rda")
+testInputExpData_ld=data[["testInputData"]][, which(data[["testLabels"]]=='proband')]
+
+testLabels=c(testLabels, data[["testLabels"]][which(data[["testLabels"]]=='proband')])
+testLabels=replace(testLabels, testLabels=='proband','TD')
+
+expClassName='ASD'
+
+annotation <- fData(testInputExpData)
+metaData <- data.frame(labelDescription=colnames(annotation)) 
+probeinfo <- new("AnnotatedDataFrame", data=data.frame(annotation), varMetadata=metaData)
+phenoData_ <- rbind(pData(testInputExpData), pData(testInputExpData_ld))
+phenoData_ <- new("AnnotatedDataFrame", data=data.frame(phenoData_), varMetadata=data.frame(labelDescription=colnames(phenoData_)) )
+expMat <- cbind(exprs(testInputExpData), exprs(testInputExpData_ld))
+colnames(expMat) = rownames(phenoData_)
+testInputExpData=new("ExpressionSet", exprs=expMat, featureData = probeinfo, phenoData=phenoData_)
+
+
+save(inputExpData,labels,testInputExpData,testLabels,middleFns,initializerFns,posteriorFns,classificationMethodsList,expClassName,
+     file="/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_main_with_ASD_and_LD.rda")
+
 ############
 # than go to the jabba and do 
 # sudo chmod -R a+rwx /data/bokan
@@ -68,30 +144,13 @@ write.table(outputfilesList,file=paste0(output.directory,"dataList.txt"),row.nam
 
 ### making the LD data
 {
-  load("/Volumes/Work/Vahid_work/classification_newcode_data/data_LD.rda")
-  # test_set=list()
-  testInputExpData=data[["testInputData"]]
-  testLabels=data[["testLabels"]]
-  testLabels=replace(testLabels, testLabels=='proband','ASD')
-  middleFns=middleFns
-  posteriorFns=posteriorFns
-  classificationMethodsList=classificationMethodsList
   
-  ###
-  load('/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_170.rda')
-  labels=as.vector(inputExpData@phenoData@data[["diagnosis_binary"]])
-  inputExpData=inputExpData
-  expClassName='ASD'
-  initializerFns=initializerFns
-  
-  save(inputExpData,labels,testInputExpData,testLabels,middleFns,initializerFns,posteriorFns,classificationMethodsList,expClassName,
-       file="/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_170_with_55LD_feature_only.rda")
   ### do the initialization for main+test
   setwd('/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/2_mainCode/')
   source('pipelines.R')
   require(Biobase,quietly = T)
   
-  load("/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_170_with_55LD_feature_only.rda")
+  load("/Volumes/Work/Vahid_work/classification_newcode_data/inputExpData_main_with_ASD_and_LD.rda")
   output.directory='/Volumes/Work/Vahid_work/classification_newcode_data/ld_runner/'
   if(!file.exists(output.directory)){
     dir.create(output.directory)
@@ -104,6 +163,9 @@ write.table(outputfilesList,file=paste0(output.directory,"dataList.txt"),row.nam
   trainingInput=inputExpData
   trainingLabels=labels
   testInput=testInputExpData
+  method=initializerFns
+  testLabels=testLabels
+  testInputData=testInput
   results=.myInitializer(trainingInput,labels=trainingLabels,testInputData=testInput,testLabels=testLabels,method=initializerFns,prevMethod="")
   
   counter=1
@@ -119,6 +181,17 @@ write.table(outputfilesList,file=paste0(output.directory,"dataList.txt"),row.nam
   outputfilesList=outputfilesList[-1]
   write.table(outputfilesList,file=paste0(output.directory,"dataList.txt"),row.names = F,col.names = F)
 }
+
+############################
+# processing the ld_result #
+############################
+setwd("/Volumes/Work/Vahid_work/classification_newcode/autism_classifier/3_resVis/")
+source('myDataCollector.R')
+args="/Volumes/Work/Vahid_work/classification_newcode_data/ld_runner/"
+# args="/Volumes/Work/Vahid_work/classification/classification/HT_as_test_v2/data/deconvoluted_genes/sampleScores/mainDataset_HT12_WG6/classificationSetInternalROC/"
+.myFeatureCollector(args)
+.myDataCollector(args)
+
 
 
 ### making the longitude data
@@ -185,13 +258,18 @@ ommandArgs(trailingOnly=TRUE)
 rm(list=ls())
 # args="/Volumes/Work/Vahid_work/classification_newcode_data/main_runner/"
 .myFeatureCollector=function(args){
-  # args="/Volumes/Work/Vahid_work/classification_newcode_data/test_runner/"
+  # args="/Volumes/Work/Vahid_work/classification_newcode_data/ld_runner/"
   path=gsub("\"", "", args[1])
   dataList=read.table(paste0(path,"dataList.txt"))
+  if (length(strsplit(as.character(dataList$V1[1]),"/")[[1]])>2){
+    path=''
+  }else{
   path=unlist(strsplit(args,"/"))
   path=path[-length(path)]
   path=paste(path,collapse = "/")
-  path=paste0(path,"/")
+  path=paste0(path,"/")}
+  
+  # path
   res=list()
   error_count=0
   head_count = 0
@@ -356,7 +434,7 @@ write(exportJSON, "/Volumes/Work/Vahid_work/classification_newcode_data/final_cl
 # ###################
 # for the test ####
 ###################
-rm(list=ls())
+{rm(list=ls())
 args="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/"
 .myDataCollector(args)
 .myFeatureCollector(args)
@@ -372,18 +450,6 @@ rm(ROCres)
 a1[is.na(a1)] <- 0
 dim(a1)
 load("/Volumes/Work/Vahid_work/classification/classification/HT_as_test_v2/data/deconvoluted_genes/sampleScores/testDataset_HT12/testDataset_HT12/ResultsArranged.rda")
-# load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test_old/ResultsArranged.rda")
-
-a2=as.data.frame(ROCres[["resMeans"]])
-a2[is.na(a2)] <- 0
-dim(a2)
-a1=a1[match(rownames(a2),rownames(a1)),]
-dim(a1)
-a2=a2[match(rownames(a2),rownames(a1)),]
-dim(a2)
-# a2=a2[match(rownames(a1), rownames(a2)),]
-
-# a3=as.vector(abs(as.matrix(a2)-as.matrix(a1)))
 # 
 a3 = as.matrix(abs(a2-a1))
 View(a3)
@@ -395,6 +461,23 @@ load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT1
 exportJSON <- toJSON(res)
 write(exportJSON, "/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_HT12_test/feature.json")
 # list2 <- fromJSON("test.json")
+}
+
+{# ###################
+  # for the test with main####
+  ###################
+rm(list=ls())
+args="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_test_main_added/"
+.myDataCollector(args)
+.myFeatureCollector(args)
+
+load("/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_test_main_added/feature.rda")
+exportJSON <- toJSON(res)
+write(exportJSON, "/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_test_main_added/feature.json")
+
+# args="/Volumes/Work/Vahid_work/classification/classification/HT_as_test_v2/data/deconvoluted_genes/sampleScores/testDataset_HT12/testDataset_HT12/"
+# .myDataCollector(args)
+}
 
 # args="/Volumes/Work/Vahid_work/classification_newcode_data/test_runner/"
 
@@ -488,3 +571,117 @@ load("/Volumes/Work/Vahid_work/classification/classification/HT_as_test_v2/data/
 View(inputExpData@featureData@data)
 write.table(inputExpData@featureData@data, file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/gene_info.csv",sep = "\t")
 
+
+load("/Volumes/Work/Vahid_work/classification_newcode_data/test_hold/data.rda")
+middleFns =list()
+middleFns[[1]]='no'
+middleFns
+posteriorFns=list()
+posteriorFns[[1]]='pcr'
+posteriorFns[[2]]='plsr'
+posteriorFns[[3]]='cppls'
+save(classificationMethodsList,data,middleFns,posteriorFns, file = "/Volumes/Work/Vahid_work/classification_newcode_data/test_hold/data.rda")
+save(resultsMiddle,posteriorFns, file = "/Volumes/Work/Vahid_work/classification_newcode_data/test_hold/resultsMiddle.rda")
+
+
+
+#######################3
+inputExpSet=resultsMiddle[[1]]$features
+a=as.numeric(rownames(inputExpSet))
+inputExpSet <- inputExpSet[order(a),]
+dim(inputExpSet)
+labels=resultsMiddle[[1]]$labels
+testInputData=resultsMiddle[[1]]$testInputData
+row.names(testInputData) = as.numeric(rownames(testInputData))
+testInputData <- testInputData[ order(row.names(testInputData)),]
+testLabels=resultsMiddle[[1]]$testLabels
+
+if(is.null(outputsize)){
+  outputsize=0.9
+}
+if(outputsize>0.99){
+  print("output size is supposed to be less than 1")
+  print("considering output size of 0.9")
+  outputsize=0.9
+}
+pcaObj=prcomp(t(.matrixExtraction(inputExpSet)),scale. = T)
+varExplained=cumsum(pcaObj$sdev^2 / sum(pcaObj$sdev^2))
+ncomp=min(which(varExplained>=outputsize))
+
+dataPrepared=list(as.numeric(as.factor(labels)),t(.matrixExtraction(inputExpSet)))
+class(dataPrepared)="data.frame"
+names(dataPrepared)=c("labels","covariates")
+row.names(dataPrepared)=colnames(inputExpSet)
+#print(paste0("starting with ",max(ncomp,5)," components"))
+
+#pls.options(parallel = makeCluster(4, type = "PSOCK"))
+res_pcr <- pcr(labels ~ covariates, ncomp = 92, data = dataPrepared, validation = "CV",segments=5,scale=TRUE)
+explvar(res_pcr)
+aload = unclass(res_pcr[["loadings"]])
+aload = abs(aload)
+aload = sweep(aload, 2, colSums(aload), "/")
+aload = sort(aload[,1], decreasing = TRUE)
+aload_cum = cumsum(aload)
+minweight = min(which(aload_cum>=0.66))
+gene_name = names(aload)[1:minweight]
+hist(aload[,1])
+plot(aload_cum)
+
+res_plsr <- plsr(labels ~ covariates, ncomp = 3, data = dataPrepared, validation = "CV", scale=TRUE)
+explvar(res_plsr)
+plot(res_plsr, "weights", comps = 1:2, legendpos = "topleft",labels = "numbers", xlab = "nm")
+aweights = unclass(res_plsr[["loading.weights"]])
+aweights = abs(aweights)
+aweights = sweep(aweights, 2, colSums(aweights), "/")
+aweights = as.matrix(aweights) %*% as.matrix(explvar(res_plsr))
+akk = sort(aweights, decreasing = TRUE)
+weightExplained = cumsum(akk)
+the_last = min(which(weightExplained>=weightExplained[length(weightExplained)]*0.66))
+write(names(akk)[1:the_last], "/Volumes/Work/Vahid_work/classification_newcode_data/name.txt")
+print(min(which(weightExplained>=weightExplained[length(weightExplained)]*0.66)))
+
+akk = sort(apply(aweights,1, sum), decreasing = TRUE)
+weightExplained = cumsum(akk)
+minweight = min(which(weightExplained>=1))
+minweight
+
+res_cppls <- cppls(labels ~ covariates, ncomp = 5, data = dataPrepared, validation = "CV",segments=5,scale=TRUE)
+ncomp=selectNcomp(res_cppls, method = "randomization", plot = F)
+ncomp=max(ncomp,3)
+#print(paste0("CPPLS number of components by CV:", ncomp))
+res_cppls <- cppls(labels ~ covariates, ncomp = ncomp, data = dataPrepared, validation = "CV",scale=TRUE)
+ncomp
+aweights = unclass(res_cppls[["loading.weights"]])
+aweights = abs(aweights)
+aweights = sweep(aweights, 2, colSums(aweights), "/")
+View()
+
+# View(sort(aweights[,1], decreasing = TRUE))
+
+
+# testInputData=predict(res,newdata = t(.matrixExtraction(testInputData)))
+#print(paste0("CPPLS number of components by CV:", ncomp))
+res_cppls <- cppls(labels ~ covariates, ncomp = ncomp, data = dataPrepared, validation = "CV",scale=TRUE)
+ncomp
+# colSums(sweep(aload, 2, colSums(aload), "/"))
+aweights = unclass(res_cppls[["loading.weights"]])
+aweights = abs(aweights)
+aweights = sweep(aweight0s, 2, colSums(aweights), "/")
+View(sort(apply(aweights,1, sum), decreasing = TRUE))
+View(sort(aweights[,1], decreasing = TRUE))
+head(aweights[,1:3])
+# colSums(sweep(aweights, 2, colSums(aweights), "/"))
+sum(aload[,1])
+
+# 
+# library(pls)
+# data(gasoline)
+# gasTrain <- gasoline[1:50,]
+# gasTest <- gasoline[51:60,]
+# gas1 <- plsr(octane ~ NIR, ncomp = 10, data = gasTrain, validation = "LOO")
+# summary(gas1)
+# plot(gas1, ncomp = 2, asp = 1, line = TRUE)
+# plot(gas1, plottype = "scores", comps = 1:3)
+# plot(gas1, "loadings", comps = 1:2, legendpos = "topleft",labels = "numbers", xlab = "nm")
+
+write.table(inputExpData@featureData@data[["Entrez_Gene_ID"]], file="/Volumes/Work/Vahid_work/classification_newcode_data/final_result_plot/ALL_GENE_FEATURE.txt",row.names = F,col.names = F)
