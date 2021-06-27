@@ -473,8 +473,8 @@ sum(perm1>0.8)+sum(perm2>0.8)+sum(perm3>0.8)+sum(perm4>0.8)+sum(perm5>0.8)
 ```{r}
 
 
-dataTandM=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_test_main_added/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))#,wCompleteDS=T)
-save(dataTandM, file=)
+# dataTandM=.myDataArrangerFn(inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_testDataset_test_main_added/",inputROCthr=0.7,inputROCPower=2,colorset=c("black","green"))#,wCompleteDS=T)
+# save(dataTandM, file=)
 
 ```
 
