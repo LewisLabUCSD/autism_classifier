@@ -12,11 +12,11 @@ editor_options:
 .mySampleScoreArrangerFn=function(inputPath){
   #This function reads in the sample scores (between 0 and 1)
   # inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/classification_perm/"
-  # inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/final_classificationSet_main/"
+  inputPath="/Volumes/Work/Vahid_work/classification_newcode_data/ld_runner/"
 
   resCombined=list()
-  # tmpFiles=list.files(inputPath)
-  tmpFiles = read.table(paste0(inputPath,"dataList.txt"))
+  tmpFiles=list.files(inputPath)
+  dataList = read.table(paste0(inputPath,"dataList.txt"))
   if (length(strsplit(as.character(dataList$V1[1]),"/")[[1]])>2){
     path=''
   }else{
