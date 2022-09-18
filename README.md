@@ -1,6 +1,7 @@
-## A Highly Accurate Ensemble Classifier for the Molecular Diagnosis of ASD at Ages 1 to 4 Years
-Bokan Bao, Vahid H. Gazestani, Yaqiong Xiao, Raphael Kim, Austin W.T. Chiang, Srinivasa Nalabolu, Karen Pierce, Kimberly Robasky, Nathan E. Lewis, Eric Courchesne
-doi: https://doi.org/10.1101/2021.07.08.21260225
+## A Predictive Ensemble Classifier for the Gene Expression Diagnosis of ASD at Ages 1 to 4 Years
+
+Bokan Bao, Javad Zahiri, Vahid H. Gazestani, Linda Lopez, Yaqiong Xiao, Raphael Kim, Teresa H. Wen, Austin W.T. Chiang, Srinivasa Nalabolu, Karen Pierce, Kimberly Robasky, Tianyun Wang, Kendra Hoekzema, Evan E. Eichler, Nathan E. Lewis, Eric Courchesne 
+
 
 ### flowchart of the pipeline
 
